@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Time in heart-rate zones from a .fit file | Lapline</title>
+    <meta name="theme-color" content="#0a0c0f" />
+    <meta name="description" content="See how long you spent in each heart-rate zone, per session and week by week, from the .fit files your watch records. In your browser, nothing uploaded." />
+    <link rel="canonical" href="https://lapline.app/guides/heart-rate-zones-from-fit-file/" />
+    <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+  </head>
+  <body>
+    <!-- SITE_HEADER -->
+
+    <main>
+      <article class="l-article">
+        <h1>Time in heart-rate zones from a .fit file</h1>
+        <p class="l-lede">
+          Open your .fit files in Lapline and see how long you spent in each heart-rate zone: for a single session,
+          for a week, or over months, to check whether your easy days are really easy.
+        </p>
+        <div class="l-actions">
+          <a class="l-btn l-btn-primary" href="/app/">Open your files</a>
+          <a class="l-btn" href="/app/?sample=1">Try it with sample data</a>
+        </div>
+
+        <h2>Which zones?</h2>
+        <p>
+          When your watch records a workout it also writes down your heart-rate zones as they were set on the watch,
+          and how long you spent in each. Lapline uses those, so the numbers match what your watch and its app show:
+          Zone 1 (warm up) to Zone 5 (maximum). To change your zones, change them on the watch or in its app; new
+          workouts will use them.
+        </p>
+
+        <h2>What you can see</h2>
+        <ul>
+          <li><strong>Per session:</strong> time and share in each zone, a heart-rate density chart of every reading, and the route and timeline coloured by zone.</li>
+          <li><strong>Per lap:</strong> a zone-mix bar under each kilometre.</li>
+          <li><strong>Over time:</strong> Today shows your time in zone for the chosen range, and Trends shows each week's intensity distribution, so you can see whether you're training mostly easy (Zones 1–2) with a little hard work, or drifting into the middle.</li>
+          <li><strong>In the activity list:</strong> each session's zone split as a small bar, and its average heart rate coloured when it was hard (Zone 4 or 5).</li>
+        </ul>
+
+        <h2>What it needs</h2>
+        <p>
+          A .fit file from a watch that recorded heart rate. A .gpx file has no zones or zone times in it (and many
+          .gpx exports have no heart rate at all), so zone breakdowns need the original .fit file. See
+          <a href="/?home#guides">how to get the original files</a> for Garmin, COROS, Wahoo, Suunto, Polar, Zwift,
+          Apple Watch and Strava.
+        </p>
+
+        <h2>Private by design</h2>
+        <p>
+          Lapline reads your files in your browser and keeps them on your device. There's no account and nothing is
+          uploaded.
+        </p>
+      </article>
+    </main>
+
+    <!-- SITE_FOOTER -->
+
+    <script type="module" src="/src/landing/main.ts"></script>
+  </body>
+</html>

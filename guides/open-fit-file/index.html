@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Open a .fit file online, without uploading it | Lapline</title>
+    <meta name="theme-color" content="#0a0c0f" />
+    <meta name="description" content="View a .fit file from your watch or bike computer in your browser: pace, heart rate, laps, route and zones. Free, no account, and the file never leaves your device." />
+    <link rel="canonical" href="https://lapline.app/guides/open-fit-file/" />
+    <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+  </head>
+  <body>
+    <!-- SITE_HEADER -->
+
+    <main>
+      <article class="l-article">
+        <h1>Open a .fit file online</h1>
+        <p class="l-lede">
+          Lapline opens the .fit files your watch or bike computer records, right in your browser. You see the
+          whole session (pace, heart rate, laps, route and zones), and the file is read on your device, not
+          uploaded anywhere.
+        </p>
+        <div class="l-actions">
+          <a class="l-btn l-btn-primary" href="/app/">Open a .fit file</a>
+          <a class="l-btn" href="/app/?sample=1">See it with sample data first</a>
+        </div>
+
+        <h2>What is a .fit file?</h2>
+        <p>
+          FIT (Flexible and Interoperable Data Transfer) is the file format most sports watches and bike computers
+          use to record a workout: Garmin, COROS, Wahoo, Suunto, Polar, Zwift and many more. It's a compact binary
+          file, so a text editor can't show you anything useful. It holds a reading every second or so (time, position,
+          heart rate, speed, cadence, power, elevation) plus the laps and a summary of the session.
+        </p>
+
+        <h2>How to open one in Lapline</h2>
+        <ol>
+          <li>Open <a href="/app/">Lapline</a> and choose <strong>Import</strong> (the download arrow).</li>
+          <li>Drop the .fit file in, or click to choose it. You can pick many files at once.</li>
+          <li>The activity opens with its headline numbers, a heart-rate and pace timeline, per-kilometre laps, the route coloured by heart-rate zone, and detailed stats.</li>
+        </ol>
+        <p>
+          Lapline also reads .gpx files. It doesn't read .tcx files yet. Your imports stay in your browser, so next
+          time you open Lapline they're still there, and trends, records and training load build up as you add more.
+        </p>
+
+        <h2>Why nothing is uploaded</h2>
+        <p>
+          Most online .fit viewers send your file to a server to process it. A .fit file with GPS shows where you
+          run or ride, often starting from your front door. Lapline does all the work in your browser instead: there's
+          no Lapline server and no account, so the file never leaves your device.
+        </p>
+
+        <h2>Where do I get the file?</h2>
+        <p>
+          Most device apps have an "export original" option. See the step-by-step guides for
+          <a href="/?home#guides">Garmin, COROS, Wahoo, Suunto, Polar, Zwift, Apple Watch and Strava</a>, or
+          <a href="/guides/garmin-fit-file-without-uploading/">getting a Garmin .fit file</a> in detail.
+        </p>
+
+        <h2>If a file won't open</h2>
+        <p>
+          Not every .fit file is a workout: watches also write settings, sleep and monitoring files with the same
+          extension, and Lapline will say "no workout data found" for those. A file that was cut off while copying
+          can't be read either; export it again from the device's app.
+        </p>
+      </article>
+    </main>
+
+    <!-- SITE_FOOTER -->
+
+    <script type="module" src="/src/landing/main.ts"></script>
+  </body>
+</html>

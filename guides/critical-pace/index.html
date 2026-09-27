@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Critical pace curve from your own runs | Lapline</title>
+    <meta name="theme-color" content="#0a0c0f" />
+    <meta name="description" content="Your fastest pace for 1 to 60 minutes, worked out from every second of your real runs rather than typed-in race times, and compared with the period before. Free and private." />
+    <link rel="canonical" href="https://lapline.app/guides/critical-pace/" />
+    <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+  </head>
+  <body>
+    <!-- SITE_HEADER -->
+
+    <main>
+      <article class="l-article">
+        <h1>Critical pace, from your own runs</h1>
+        <p class="l-lede">
+          A critical pace calculator usually asks you for a couple of race times. Lapline works it out from your
+          actual running instead: for each length of effort from 1 to 60 minutes, the fastest pace you really held,
+          found in the .fit and .gpx files you import.
+        </p>
+        <div class="l-actions">
+          <a class="l-btn l-btn-primary" href="/app/#/records">See your curve</a>
+          <a class="l-btn" href="/app/?sample=1">Try it with sample data</a>
+        </div>
+
+        <h2>What critical pace means</h2>
+        <p>
+          The longer you run, the slower the pace you can hold. Plot your best pace against how long you held it and
+          you get a curve that drops steeply over the first few minutes and then flattens. In running science,
+          <em>critical pace</em> (or critical speed) is roughly where that curve levels off: about the fastest pace
+          you can keep up for a long time without steadily tiring, typically somewhere around your 30 to 60-minute
+          race pace. It's a useful anchor for threshold and interval training.
+        </p>
+
+        <h2>How Lapline builds your curve</h2>
+        <ul>
+          <li>It looks at seven lengths of effort: 1, 5, 10, 20, 30, 45 and 60 minutes.</li>
+          <li>For each one it scans every second of every run in the date range you choose and finds the fastest stretch of that length, whether or not it was a lap, a race or a personal record.</li>
+          <li>It draws the same curve for the period just before, so you can see where you've got faster or slower.</li>
+        </ul>
+        <p>
+          Because it comes from what you actually ran, the curve is only as good as your recent efforts: if you haven't
+          run hard for 20 minutes lately, the 20-minute point shows your best easy running, not your potential. A
+          hard session or a race fills it in. Lapline shows the measured curve; it doesn't fit a mathematical model
+          to it or predict race times.
+        </p>
+
+        <h2>Where to find it</h2>
+        <p>
+          Import your runs, then open <strong>Records</strong>. The critical pace curve sits under your personal
+          records, with the current period in teal and the previous one in grey. Change the range at the top (4 weeks,
+          12 weeks, a year) to compare different periods.
+        </p>
+
+        <h2>Private by design</h2>
+        <p>
+          Your runs are read and analysed in your browser and stored on your device. Nothing is uploaded, and there's no
+          account to create. Estimates like this one are training guidance, not medical advice.
+        </p>
+      </article>
+    </main>
+
+    <!-- SITE_FOOTER -->
+
+    <script type="module" src="/src/landing/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Analyse a Garmin .fit file without uploading it | Lapline</title>
+    <meta name="theme-color" content="#0a0c0f" />
+    <meta name="description" content="Get the original .fit file from Garmin Connect or straight off your watch, and analyse it in your browser: laps, heart-rate zones, training load and records. Nothing is uploaded." />
+    <link rel="canonical" href="https://lapline.app/guides/garmin-fit-file-without-uploading/" />
+    <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+  </head>
+  <body>
+    <!-- SITE_HEADER -->
+
+    <main>
+      <article class="l-article">
+        <h1>Analyse a Garmin .fit file without uploading it</h1>
+        <p class="l-lede">
+          Your Garmin watch records every workout as a .fit file. You can take that file and analyse it in Lapline,
+          in your browser, without sending it to anyone: training load, heart-rate zones, laps, records and trends.
+        </p>
+        <div class="l-actions">
+          <a class="l-btn l-btn-primary" href="/app/">Open Lapline</a>
+          <a class="l-btn" href="/app/?sample=1">Try it with sample data</a>
+        </div>
+
+        <h2>Get the original file from Garmin Connect</h2>
+        <ol>
+          <li>On the Garmin Connect website (connect.garmin.com), open the activity. The mobile app doesn't offer this.</li>
+          <li>Open the <strong>gear</strong> menu at the top right and choose <strong>Export Original</strong>.</li>
+          <li>You get a .zip with the .fit file inside. Unzip it, then import the .fit into Lapline.</li>
+        </ol>
+
+        <h2>Or read it straight off the watch</h2>
+        <p>
+          Plug the watch into a computer with its USB cable. Its activities are in the <strong>GARMIN/Activity</strong>
+          folder. In Chrome or Edge, Lapline's Import window has <strong>Connect device folder</strong>: point it at that
+          folder once, and from then on one click imports anything new. In other browsers, choose the files from that
+          folder by hand.
+        </p>
+
+        <h2>What you see</h2>
+        <ul>
+          <li>The session's timeline of heart rate and pace, with steady-state and cardiac-drift detection.</li>
+          <li>Per-kilometre laps with a heart-rate trace each, and the route coloured by heart-rate zone.</li>
+          <li>Time in each heart-rate zone, using the zones set on your watch.</li>
+          <li>Garmin's own training effect, VO₂ max and recovery time where the watch recorded them (marked as estimates).</li>
+          <li>Across all your files: training load against your 6-week baseline, trends, and personal records.</li>
+        </ul>
+
+        <h2>Why not just upload it somewhere?</h2>
+        <p>
+          A .fit file with GPS is a precise record of where and when you train, and it usually starts at home. Lapline
+          reads it in your browser and keeps it in your browser's own storage on your device. There's no Lapline
+          server and no account, so there's nothing to upload it to. The code is open source (MIT), so anyone can
+          check.
+        </p>
+      </article>
+    </main>
+
+    <!-- SITE_FOOTER -->
+
+    <script type="module" src="/src/landing/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,292 @@
+/* landing/landing.css - the landing page at /. Same tokens and fonts as the
+   app (styles/tokens.css), in a calmer, more readable layout: one column of
+   prose at a comfortable measure, no dense panels. */
+@import '../styles/fonts.css';
+@import '../styles/tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-app);
+  color: var(--ink-2);
+  font-family: var(--font-sans);
+  font-size: calc(17px * var(--text-scale));
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--accent-hover);
+}
+
+.l-top,
+main,
+.l-foot {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding-left: max(var(--space-7), env(safe-area-inset-left));
+  padding-right: max(var(--space-7), env(safe-area-inset-right));
+}
+
+.l-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: calc(var(--space-7) + env(safe-area-inset-top));
+  padding-bottom: var(--space-7);
+}
+.l-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--ink-1);
+  font-weight: var(--fw-bold);
+  font-size: calc(20px * var(--text-scale));
+  font-variation-settings: 'wdth' 118;
+  letter-spacing: -0.02em;
+}
+.l-brand:hover {
+  color: var(--ink-1);
+}
+
+.l-hero {
+  padding: var(--space-10) 0 var(--space-9);
+}
+.l-hero h1 {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: clamp(32px, 6vw, 52px);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: var(--fw-bold);
+  max-width: 16ch;
+}
+.l-lede {
+  margin: var(--space-8) 0 0;
+  max-width: 60ch;
+  color: var(--ink-3);
+  font-size: calc(19px * var(--text-scale));
+}
+.l-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  margin-top: var(--space-9);
+}
+
+.l-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--space-8);
+  border: 1px solid var(--line-panel);
+  border-radius: var(--radius);
+  color: var(--ink-1);
+  font-weight: var(--fw-semibold);
+}
+.l-btn:hover {
+  border-color: var(--ink-6);
+  color: var(--ink-1);
+}
+.l-btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg-app);
+}
+.l-btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: var(--bg-app);
+}
+.l-btn-quiet {
+  min-height: 36px;
+  padding: 0 var(--space-6);
+  font-size: calc(15px * var(--text-scale));
+}
+
+.l-shot {
+  margin: var(--space-10) 0 0;
+}
+.l-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border: 1px solid var(--line-panel);
+  border-radius: var(--radius);
+  background: var(--bg-panel);
+}
+
+.l-section {
+  padding: var(--space-10) 0;
+  border-top: 1px solid var(--line-soft);
+}
+.l-section h2 {
+  margin: 0 0 var(--space-7);
+  color: var(--ink-1);
+  font-size: calc(26px * var(--text-scale));
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.l-section p {
+  max-width: 64ch;
+  margin: 0 0 var(--space-6);
+}
+.l-section strong {
+  color: var(--ink-1);
+}
+
+.l-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: var(--space-8) var(--space-9);
+}
+.l-features strong {
+  display: block;
+  margin-bottom: var(--space-2);
+  color: var(--ink-1);
+}
+
+.l-guides {
+  display: flex;
+  flex-direction: column;
+}
+.l-guide,
+.l-faq {
+  border-bottom: 1px solid var(--line-soft);
+}
+.l-guide summary,
+.l-faq summary {
+  cursor: pointer;
+  padding: var(--space-6) 0;
+  color: var(--ink-1);
+  font-weight: var(--fw-semibold);
+  list-style: none;
+}
+.l-guide summary::-webkit-details-marker,
+.l-faq summary::-webkit-details-marker {
+  display: none;
+}
+.l-guide summary::before,
+.l-faq summary::before {
+  content: '▸';
+  display: inline-block;
+  width: 1.2em;
+  color: var(--ink-5);
+  transition: transform 0.15s ease;
+}
+.l-guide[open] summary::before,
+.l-faq[open] summary::before {
+  transform: rotate(90deg);
+}
+.l-guide ol {
+  margin: 0 0 var(--space-5);
+  padding-left: var(--space-10);
+}
+.l-guide li + li {
+  margin-top: var(--space-3);
+}
+.l-guide p,
+.l-faq p {
+  margin: 0 0 var(--space-7);
+  padding-left: 1.2em;
+  color: var(--ink-3);
+}
+
+.l-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-8);
+  padding-top: var(--space-9);
+  padding-bottom: calc(var(--space-10) + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line-soft);
+  color: var(--ink-5);
+  font-size: calc(15px * var(--text-scale));
+}
+
+/* Changelog page (changelog/index.html). */
+.l-hero-small {
+  padding-bottom: var(--space-7);
+}
+.l-release {
+  padding: var(--space-9) 0;
+  border-top: 1px solid var(--line-soft);
+}
+.l-release h2 {
+  margin: 0 0 var(--space-6);
+  color: var(--ink-1);
+  font-family: var(--font-mono);
+  font-size: calc(22px * var(--text-scale));
+}
+.l-release-date {
+  margin-left: var(--space-5);
+  color: var(--ink-5);
+  font-family: var(--font-sans);
+  font-size: calc(15px * var(--text-scale));
+  font-weight: var(--fw-regular);
+}
+.l-release ul {
+  margin: 0;
+  padding-left: var(--space-8);
+  max-width: 68ch;
+}
+.l-release li + li {
+  margin-top: var(--space-3);
+}
+
+/* Guide pages (guides/<slug>/index.html): a readable article column. */
+.l-article {
+  padding: var(--space-10) 0;
+  max-width: 68ch;
+}
+.l-article h1 {
+  margin: 0;
+  color: var(--ink-1);
+  font-size: clamp(30px, 5vw, 44px);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.l-article h2 {
+  margin: var(--space-10) 0 var(--space-5);
+  color: var(--ink-1);
+  font-size: calc(22px * var(--text-scale));
+  line-height: 1.25;
+}
+.l-article p,
+.l-article li {
+  color: var(--ink-2);
+}
+.l-article ol,
+.l-article ul {
+  padding-left: var(--space-8);
+}
+.l-article li + li {
+  margin-top: var(--space-3);
+}
+.l-article strong {
+  color: var(--ink-1);
+}
+
+.l-more {
+  margin-top: var(--space-7);
+  color: var(--ink-4);
+}

@@ -1,0 +1,6 @@
+# Binary formats - never line-ending converted.
+*.fit binary
+*.zip binary
+*.png binary
+*.woff2 binary
+*.webm binary

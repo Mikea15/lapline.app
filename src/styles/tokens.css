@@ -1,0 +1,171 @@
+/* styles/tokens.css
+   The single source of truth for the design system: colors, type scale,
+   weights, tracking, spacing and radii. global.css and every component only
+   reference these custom properties - never raw values - so an alternate
+   theme or color scheme is one more block here overriding them, e.g.
+   :root[data-theme='light'] { --bg-app: ...; --ink-1: ...; }. */
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg-app: #0a0c0f;
+  --bg-nav: #0c0f13;
+  --bg-panel: #12161b;
+  --bg-well: #0e1216;
+  --bg-row-active: #151b22;
+  --bg-row-hover: #171d25;
+
+  /* Structure */
+  --line-panel: #232a33;
+  --line-soft: #1b212a;
+  --line-row: #161c23;
+  /* Calendar screen's session-chip border (design_handoff_calendar/README.md
+     section 8) - close to but distinct from --line-panel, so a completed
+     session's solid border reads slightly stronger than the panel frame
+     around it. */
+  --line-chip: #2a3340;
+  --radius: 3px;
+  --radius-sm: 2px;
+
+  /* Ink */
+  --ink-1: #e8edf2;
+  --ink-2: #c3ced9;
+  --ink-3: #9aa7b4;
+  --ink-4: #8d9aa8;
+  --ink-5: #64717e;
+  --ink-6: #4d5865;
+  --ink-7: #3c4653;
+
+  /* Signal */
+  --accent: #3fd0c9;
+  --accent-hover: #7ce4de;
+
+  /* Neutral series (weekly load bars, comparison lines) */
+  --neutral-bar: #3a4553;
+  --neutral-bar-last: #5f6e80;
+  --neutral-bar-alt: #38434f;
+  --neutral-line: #4a5766;
+
+  /* Heart-rate zones (Z1 warm up -> Z5 maximum) */
+  --zone-1: #5d8ee0;
+  --zone-2: #3fc0c9;
+  --zone-3: #7cc45a;
+  --zone-4: #e3a53d;
+  --zone-5: #e2603f;
+
+  /* Sport accents */
+  --sport-running: #3fd0c9;
+  --sport-cycling: #7cc45a;
+  --sport-pool-swim: #5d8ee0;
+  --sport-cardio: #e3a53d;
+  --sport-climbing: #a682e0;
+  --sport-other: #8d9aa8;
+
+  /* Semantic */
+  --positive: #7cc45a;
+  --caution: #e3a53d;
+  --alert: #e2603f;
+
+  /* Heatmap ramp (rest -> most active) */
+  --heat-0: #0e1216;
+  --heat-1: #1d3a3d;
+  --heat-2: #237076;
+  --heat-3: #2ba3a2;
+  --heat-4: #3fd0c9;
+
+  /* ===== Type scale =====
+     Every font-size in the app is one of these steps - no raw px values in
+     components. 11px (--fs-xs) is the floor: nothing renders smaller
+     (uppercase mono kickers, legends and chip meta sit there) - a 10px step
+     existed and was removed as too small to read. --text-scale is the user's
+     Settings > Display > Text size multiplier (set on <html> by App.svelte),
+     so the whole scale grows or shrinks together and the hierarchy between
+     steps never changes. */
+  --text-scale: 1;
+  --fs-xs: calc(11px * var(--text-scale)); /* kickers, legends, chip meta, secondary labels */
+  --fs-sm: calc(12px * var(--text-scale)); /* chart axis labels, dense rows */
+  --fs-base: calc(13px * var(--text-scale)); /* default UI text */
+  --fs-md: calc(14px * var(--text-scale)); /* body copy, panel values */
+  --fs-lg: calc(15px * var(--text-scale)); /* emphasised values, headings */
+  --fs-xl: calc(20px * var(--text-scale)); /* stat numbers */
+  --fs-2xl: calc(24px * var(--text-scale)); /* hero stat numbers */
+  --fs-3xl: calc(32px * var(--text-scale)); /* screen-level figures */
+  --fs-display: calc(76px * var(--text-scale)); /* activity hero */
+
+  /* Weights - match the faces declared in fonts.css. */
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* Tracking */
+  --tracking-tight: -0.02em; /* large numerals */
+  --tracking-wide: 0.05em;
+  --tracking-caps: 0.1em; /* uppercase mono kickers/labels */
+  --tracking-wider: 0.18em; /* brand subtitle */
+
+  /* ===== Spacing scale =====
+     Every padding / margin / gap uses one of these steps. */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-7: 16px;
+  --space-8: 20px;
+  --space-9: 24px;
+  --space-10: 32px;
+
+  /* Control heights - buttons, icon buttons, segmented controls. */
+  --control-h: 30px;
+  --control-h-sm: 26px;
+
+  --font-sans: 'Archivo', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', 'Consolas', monospace;
+
+  /* Fallback for the instant before App.svelte's ResizeObserver measures the
+     real header (~62px at this padding/font-size) and overwrites this - see
+     .header's own padding/line-height. Never hand-tuned beyond that first
+     paint; the real value always wins once JS runs. */
+  --header-height: 62px;
+
+  /* Backward-compat aliases so any not-yet-restyled markup degrades sanely
+     rather than falling through to browser default colors. */
+  --page: var(--bg-app);
+  --surface: var(--bg-panel);
+  --surface-sunken: var(--bg-well);
+  --ink: var(--ink-1);
+  --ink-secondary: var(--ink-3);
+  --ink-muted: var(--ink-5);
+  --border: var(--line-panel);
+  --border-strong: var(--ink-6);
+  --hairline: var(--line-row);
+  --good: var(--positive);
+  --good-text: var(--positive);
+  --warning: var(--caution);
+  --serious: var(--alert);
+  --critical: var(--alert);
+  --font: var(--font-mono);
+}
+
+/* ===== Phone type ramp =====
+   A phone is held closer than a monitor but its pixels are physically
+   smaller, and this ramp was tuned for a desktop at arm's length - 11-13px
+   labels and body copy are hard to read on a handheld screen. Below the
+   phone breakpoint (same 720px as global.css) the small and body steps grow
+   by ~1px each; the big numeral steps stay put, since a phone is narrow
+   enough that they already fill it. Still multiplied by the user's Text
+   size setting, and lib/chart-scale.ts's axis-label target follows --fs-sm
+   here too. */
+@media (max-width: 720px) {
+  :root {
+    --fs-xs: calc(12px * var(--text-scale));
+    --fs-sm: calc(13px * var(--text-scale));
+    --fs-base: calc(14px * var(--text-scale));
+    --fs-md: calc(15px * var(--text-scale));
+    --fs-lg: calc(16px * var(--text-scale));
+    --fs-xl: calc(21px * var(--text-scale));
+  }
+}

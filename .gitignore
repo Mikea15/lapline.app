@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.local
+.DS_Store
+Thumbs.db
+
+# Per-build performance reports (scripts/perf/report.ts) - regenerated
+# every build, not meant to be committed history.
+reports/
+
+# Private real recordings - never published (see scripts/demo/).
+stub-data/
