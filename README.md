@@ -34,7 +34,7 @@ Lapline's estimates (VO₂ max, training effect, recovery time, training load) a
 
 ## Feedback
 
-Bugs, files that won't import, ideas: email [hello@lapline.app](mailto:hello@lapline.app) or open an issue.
+Bugs, files that won't import, ideas: email [hello@lapline.app](mailto:hello@lapline.app) or open an issue. Updates: [@laplineapp](https://x.com/laplineapp) on X.
 
 ## Support
 

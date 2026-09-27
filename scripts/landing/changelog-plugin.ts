@@ -7,7 +7,7 @@
 //   same list the app's Release Notes panel shows.
 import type { Plugin } from 'vite';
 import { RELEASE_NOTES } from '../../src/lib/release-notes';
-import { CONTACT_EMAIL, DONATE_URL } from '../../src/lib/links';
+import { CONTACT_EMAIL, DONATE_URL, X_URL } from '../../src/lib/links';
 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -41,7 +41,8 @@ const SITE_FOOTER = `<footer class="l-foot">
       <a href="/?home#privacy">Privacy</a>
       <a href="/changelog/">What's new</a>
       <a href="/app/">Open app</a>
-      <a href="mailto:${CONTACT_EMAIL}">Contact</a>${DONATE_URL ? `
+      <a href="mailto:${CONTACT_EMAIL}">Contact</a>
+      <a href="${X_URL}" rel="noopener">X</a>${DONATE_URL ? `
       <a href="${DONATE_URL}" rel="noopener">Buy me a coffee</a>` : ''}
     </footer>`;
 

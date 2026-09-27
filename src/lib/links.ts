@@ -6,5 +6,8 @@
 /** Where feedback and questions go. */
 export const CONTACT_EMAIL = 'hello@lapline.app';
 
+/** Lapline on X. */
+export const X_URL = 'https://x.com/laplineapp';
+
 /** Buy Me a Coffee page, e.g. 'https://buymeacoffee.com/lapline'. */
 export const DONATE_URL = 'https://buymeacoffee.com/mikea15';
