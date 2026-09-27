@@ -4,4 +4,4 @@
 // and the site footer via scripts/landing/changelog-plugin.ts).
 
 /** Buy Me a Coffee page, e.g. 'https://buymeacoffee.com/lapline'. */
-export const DONATE_URL = '';
+export const DONATE_URL = 'https://buymeacoffee.com/mikea15';

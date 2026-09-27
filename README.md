@@ -32,6 +32,10 @@ Built with Svelte 5, TypeScript and Vite. Other scripts:
 
 Lapline's estimates (VO₂ max, training effect, recovery time, training load) are training guidance, not medical advice.
 
+## Support
+
+Lapline is free and has no ads. If it's useful to you, you can [buy me a coffee](https://buymeacoffee.com/mikea15).
+
 ## Licence
 
 [MIT](LICENSE)
