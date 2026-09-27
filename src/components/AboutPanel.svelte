@@ -5,7 +5,7 @@
      duplicating their content here. -->
 <script lang="ts">
   import { CURRENT_VERSION } from '../lib/release-notes';
-  import { DONATE_URL } from '../lib/links';
+  import { CONTACT_EMAIL, DONATE_URL } from '../lib/links';
 
   interface Props {
     onOpenTerms: () => void;
@@ -102,6 +102,14 @@
     real weather condition (e.g. "Clear", "Rain") next to its temperature. Like Location lookup,
     this is <strong>off by default</strong> since it sends real location data. See the Privacy
     Policy below for the full detail.
+  </p>
+</div>
+
+<div class="card mt-4" style="max-width: 640px;">
+  <span class="section-title">Feedback</span>
+  <p style="margin: var(--space-3) 0 0; color: var(--ink-secondary); font-size: var(--fs-md);">
+    Found a bug, a file that won't import, or something you'd like to see?
+    <a href="mailto:{CONTACT_EMAIL}?subject=Lapline%20feedback">Send feedback</a> to {CONTACT_EMAIL}.
   </p>
 </div>
 
