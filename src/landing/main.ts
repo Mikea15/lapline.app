@@ -3,6 +3,9 @@
 // the same data the app's Import dialog uses (lib/import-guides.ts).
 import './landing.css';
 import { IMPORT_GUIDES, stepParts } from '../lib/import-guides';
+import { initPublicAnalytics } from './analytics';
+
+initPublicAnalytics();
 
 function rich(text: string): DocumentFragment {
   const frag = document.createDocumentFragment();

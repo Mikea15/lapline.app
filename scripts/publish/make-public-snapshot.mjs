@@ -28,6 +28,7 @@ const EXCLUDE = [
   /^bug-list[^/]*\.md$/,
   /^next-steps\.md$/,
   /^plan\.md$/,
+  /^i18n-plan\.md$/,
   /^launch-tasks\.md$/,
   /^publish\.md$/,
   /^run\.bat$/,
