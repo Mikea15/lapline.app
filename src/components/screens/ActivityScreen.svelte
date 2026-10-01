@@ -23,6 +23,7 @@
   import { formatPace, formatElevation, formatTemp, formatSpeed, paceUnit, speedUnit, toDisplayElevation, elevationUnit } from '../../lib/units';
   import { formatDateLong, formatClock } from '../../lib/date-utils';
   import { trainingEffectLabel } from '../../lib/training-feel';
+  import { altitudeRange as altitudeRangeOf } from '../../lib/altitude-range';
   import { segmentEffortPhases } from '../../lib/effort-phases';
   import { currentRecordHolderIds } from '../../lib/records';
   import { activitySortValue, rateSortValue, type ActivitySortKey } from '../../lib/activity-rate';
@@ -450,11 +451,7 @@
   const MIN_DISPLAY_SPEED = 60 / MAX_DISPLAY_PACE;
   let paceStream = $derived(detail ? detail.speed.map((s) => 60 / Math.max(s, MIN_DISPLAY_SPEED)) : []);
 
-  let altitudeRange = $derived.by(() => {
-    if (!detail || !hasAltitude) return null;
-    const vals = detail.altitude.filter((v) => v !== 0);
-    return vals.length > 0 ? { min: Math.min(...vals), max: Math.max(...vals) } : null;
-  });
+  let altitudeRange = $derived(detail && hasAltitude ? altitudeRangeOf(detail.altitude) : null);
 
   // Tape's effort-phase caption strip (bug-list.md): a real, deterministic
   // segmentation of this activity's own HR/pace streams - see

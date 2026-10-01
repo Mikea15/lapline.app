@@ -11,6 +11,7 @@
   import { settingsStore, resetAllStores, fitFilesStore, activitiesStore, backupStore, TEXT_SIZE_OPTIONS, type TextSize, type BackupRestoreResult } from '../lib/stores.svelte';
   import { RANGE_PRESET_OPTIONS, rangePresetLabel, type RangePreset } from '../lib/range-preset';
   import { setAnalyticsEnabled } from '../lib/analytics';
+  import type { Sex } from '../lib/today-kpis';
   import Icon from './Icon.svelte';
 
   interface Props {
@@ -138,6 +139,38 @@
     await settingsStore.save({ max_hr: String(v) });
   }
 
+  // Birth year and sex only pick the age/sex row of Today's VO2max rating
+  // bands. Same draft/commit-on-blur pattern as max HR above.
+  let birthYear = $state('');
+  let birthYearInput = $state<string | number>('');
+  let birthYearError = $state('');
+  const THIS_YEAR = new Date().getFullYear();
+
+  async function commitBirthYear() {
+    const raw = String(birthYearInput ?? '').trim();
+    if (raw === '') {
+      birthYearError = '';
+      birthYear = '';
+      await settingsStore.save({ birth_year: '' });
+      return;
+    }
+    const v = parseInt(raw, 10);
+    if (isNaN(v) || v < THIS_YEAR - 100 || v > THIS_YEAR - 10) {
+      birthYearError = `Enter a year between ${THIS_YEAR - 100} and ${THIS_YEAR - 10}, or leave blank.`;
+      return;
+    }
+    birthYearError = '';
+    birthYear = String(v);
+    birthYearInput = String(v);
+    await settingsStore.save({ birth_year: String(v) });
+  }
+
+  let sex = $state<Sex | null>(null);
+  async function setSex(next: Sex | null) {
+    sex = next;
+    await settingsStore.save({ sex: next ?? '' });
+  }
+
   function handleMaxHrKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
   }
@@ -145,6 +178,9 @@
   $effect(() => {
     maxHr = settingsStore.all.max_hr || '';
     maxHrInput = maxHr;
+    birthYear = settingsStore.all.birth_year || '';
+    birthYearInput = birthYear;
+    sex = settingsStore.getSex();
     unitSystem = settingsStore.getUnitSystem();
     defaultRangePreset = settingsStore.getDefaultRangePreset();
     textSize = settingsStore.getTextSize();
@@ -162,7 +198,7 @@
     { id: 'training', label: 'Training' }
   ];
 
-  type RowId = 'units' | 'defaultRange' | 'textSize' | 'analytics' | 'locationLookup' | 'weatherLookup' | 'maxHr';
+  type RowId = 'units' | 'defaultRange' | 'textSize' | 'analytics' | 'locationLookup' | 'weatherLookup' | 'maxHr' | 'birthYear' | 'sex';
   interface Row {
     id: RowId;
     section: SectionId;
@@ -236,6 +272,24 @@
       valueLabel: maxHr ? `${maxHr} bpm` : 'Auto',
       defaultLabel: 'Auto',
       isDefault: maxHr === ''
+    },
+    {
+      id: 'birthYear',
+      section: 'training',
+      name: 'Birth year',
+      desc: "With sex below, picks the age group Today's VO₂ max rating (poor to superior) is judged against. Stays on this device.",
+      valueLabel: birthYear || 'Not set',
+      defaultLabel: 'Not set',
+      isDefault: birthYear === ''
+    },
+    {
+      id: 'sex',
+      section: 'training',
+      name: 'Sex',
+      desc: "With birth year above, picks the norms Today's VO₂ max rating is judged against. Stays on this device.",
+      valueLabel: sex === 'female' ? 'Female' : sex === 'male' ? 'Male' : 'Not set',
+      defaultLabel: 'Not set',
+      isDefault: sex === null
     }
   ]);
 
@@ -285,11 +339,19 @@
         maxHrError = '';
         await commitMaxHr();
         break;
+      case 'birthYear':
+        birthYearInput = '';
+        birthYearError = '';
+        await commitBirthYear();
+        break;
+      case 'sex':
+        await setSex(null);
+        break;
     }
   }
 
   // ----- Reset all settings (distinct from "Reset all data" below - this
-  // only restores the 7 preferences above to their defaults, nothing is
+  // only restores the preferences above to their defaults, nothing is
   // deleted) -----
 
   let showResetSettingsConfirm = $state(false);
@@ -452,6 +514,26 @@
                     />
                     <span class="settings-maxhr-unit">bpm</span>
                   </div>
+                {:else if row.id === 'birthYear'}
+                  <div class="settings-maxhr">
+                    <input
+                      type="number"
+                      min={THIS_YEAR - 100}
+                      max={THIS_YEAR - 10}
+                      bind:value={birthYearInput}
+                      onblur={commitBirthYear}
+                      onkeydown={handleMaxHrKeydown}
+                      placeholder="—"
+                      aria-label="Birth year"
+                      aria-invalid={birthYearError ? 'true' : undefined}
+                    />
+                  </div>
+                {:else if row.id === 'sex'}
+                  <div class="segmented">
+                    <button class:active={sex === null} onclick={() => setSex(null)}>Not set</button>
+                    <button class:active={sex === 'female'} onclick={() => setSex('female')}>Female</button>
+                    <button class:active={sex === 'male'} onclick={() => setSex('male')}>Male</button>
+                  </div>
                 {/if}
               </div>
               <button class="settings-row-reset" style="opacity: {row.isDefault ? 0.18 : 1};" onclick={() => resetRow(row.id)} aria-label="Reset {row.name} to default" title="Reset to default">
@@ -460,6 +542,8 @@
             </div>
             {#if row.id === 'maxHr' && maxHrError}
               <p class="settings-row-error">{maxHrError}</p>
+            {:else if row.id === 'birthYear' && birthYearError}
+              <p class="settings-row-error">{birthYearError}</p>
             {/if}
           {/each}
         </div>

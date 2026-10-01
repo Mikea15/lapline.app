@@ -65,6 +65,20 @@ export function familyLabel(family: SportFamily): string {
   return FAMILY_LABEL[family];
 }
 
+// One-word names for tight spots (Today's KPI bars and heatmap legend).
+const FAMILY_SHORT_LABEL: Record<SportFamily, string> = {
+  running: 'Run',
+  cycling: 'Bike',
+  'pool-swim': 'Swim',
+  cardio: 'Cardio',
+  climbing: 'Climb',
+  other: 'Other'
+};
+
+export function familyShortLabel(family: SportFamily): string {
+  return FAMILY_SHORT_LABEL[family];
+}
+
 export function formatSport(sport: string): string {
   const family = sportFamily(sport);
   if (family === 'pool-swim') return 'Pool Swim';

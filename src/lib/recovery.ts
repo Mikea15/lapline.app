@@ -13,6 +13,7 @@ import type { Activity } from './types';
 
 export interface RecoveryStatus {
   hoursRemaining: number | null; // null if no activity has ever reported a recovery-time estimate
+  estimateHours: number | null; // the source activity's own full estimate - Today's recovery ring fills as it elapses
   sourceActivityId: number | null;
   sourceDate: string | null;
 }
@@ -61,7 +62,7 @@ export function currentRecovery(activities: Activity[]): RecoveryStatus {
     }
   }
 
-  if (!mostRecentWithData) return { hoursRemaining: null, sourceActivityId: null, sourceDate: null };
-  if (!best) return { hoursRemaining: 0, sourceActivityId: mostRecentWithData.id, sourceDate: mostRecentWithData.date };
-  return { hoursRemaining: Math.round(best.remaining), sourceActivityId: best.activity.id, sourceDate: best.activity.date };
+  if (!mostRecentWithData) return { hoursRemaining: null, estimateHours: null, sourceActivityId: null, sourceDate: null };
+  if (!best) return { hoursRemaining: 0, estimateHours: mostRecentWithData.recoveryTimeHours, sourceActivityId: mostRecentWithData.id, sourceDate: mostRecentWithData.date };
+  return { hoursRemaining: Math.round(best.remaining), estimateHours: best.activity.recoveryTimeHours, sourceActivityId: best.activity.id, sourceDate: best.activity.date };
 }

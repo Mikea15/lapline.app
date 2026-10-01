@@ -1,11 +1,16 @@
-<!-- TrainingLoadChart.svelte - Today's "acute vs chronic" load chart: 12
-     weekly bars + a productive band + a 6-week trailing chronic mean line.
-     Hand-rolled SVG (no chart lib), following LineChart.svelte's convention
-     of drawing axis ticks inside the viewBox rather than in external HTML. -->
+<!-- TrainingLoadChart.svelte - Today's "acute vs chronic" load chart:
+     weekly load bars coloured by that week's ratio band (the same colours
+     as the ratio strip and the panel's band strip; the current week is
+     outlined),
+     the 6-week trailing chronic mean as a line, and under them a strip of
+     each week's acute:chronic ratio coloured by band, then the week dates.
+     Hand-rolled SVG (no chart lib); the strip and dates are HTML laid out
+     on the same week slots, so they stay at the type scale's real size. -->
 <script lang="ts">
   import type { Activity } from '../lib/types';
-  import { weeklyLoadBuckets, trailingMean } from '../lib/training-load';
-  import { chartLabelFontSize, chartViewBoxHeight } from '../lib/chart-scale';
+  import { weeklyLoadBuckets, trailingMean, loadBand, LOAD_BAND_COLOR, type LoadBand } from '../lib/training-load';
+  import { chartLabelFontSize, chartViewBoxHeight, axisLabelSlots } from '../lib/chart-scale';
+  import { settingsStore } from '../lib/stores.svelte';
   import { addDays, bucketIndexForDate, bucketStartDate, formatDateRangeShort, formatDateShort } from '../lib/date-utils';
 
   interface Props {
@@ -22,7 +27,7 @@
   const M_RIGHT = 8;
 
   let labelFontSize = $derived(chartLabelFontSize(VB_W, containerWidth));
-  let VB_H = $derived(chartViewBoxHeight(VB_W, 176, containerWidth));
+  let VB_H = $derived(chartViewBoxHeight(VB_W, 200, containerWidth));
 
   let allWeekly = $derived(weeklyLoadBuckets(activities, weeksShown + CHRONIC_WINDOW));
   let allLoads = $derived(allWeekly.map((w) => w.load));
@@ -30,10 +35,13 @@
 
   let weekly = $derived(allWeekly.slice(CHRONIC_WINDOW));
   let chronic = $derived(chronicAll.slice(CHRONIC_WINDOW));
+  // Each week's own acute:chronic ratio (null with no chronic baseline yet).
+  const BAND_NAME: Record<LoadBand, string> = { detrain: 'detrain', productive: 'productive', caution: 'caution', risk: 'risk' };
+  let ratios = $derived(weekly.map((w, i) => (chronic[i]! > 0 ? w.load / chronic[i]! : null)));
 
   let domainMax = $derived.by(() => {
     const peak = Math.max(1, ...weekly.map((w) => w.load), ...chronic);
-    const step = 150;
+    const step = 100;
     return Math.ceil((peak * 1.15) / step) * step;
   });
 
@@ -42,7 +50,7 @@
   // x-axis dates never clip at the edges or overlap the plot.
   let M_LEFT = $derived(Math.max(48, String(Math.round(domainMax)).length * labelFontSize * 0.6 + 10));
   let M_TOP = $derived(Math.max(8, labelFontSize * 0.6));
-  let M_BOTTOM = $derived(Math.max(20, labelFontSize + 6));
+  let M_BOTTOM = $derived(Math.max(4, labelFontSize * 0.4));
   let PLOT_W = $derived(VB_W - M_LEFT - M_RIGHT);
   let PLOT_H = $derived(VB_H - M_TOP - M_BOTTOM);
 
@@ -56,6 +64,7 @@
   let yTicks = $derived(Array.from({ length: yIntervals + 1 }, (_, i) => (domainMax * (yIntervals - i)) / yIntervals));
 
   let slotW = $derived(PLOT_W / Math.max(1, weekly.length));
+  let slotPx = $derived((containerWidth * slotW) / VB_W);
   let barW = $derived(slotW * 0.56);
   function barX(i: number): number {
     return M_LEFT + i * slotW + slotW * 0.22;
@@ -64,7 +73,8 @@
   let bars = $derived(
     weekly.map((w, i) => {
       const top = py(w.load);
-      return { x: barX(i), top, height: Math.max(0, py(0) - top), isCurrent: w.isCurrent };
+      const r = ratios[i] ?? null;
+      return { x: barX(i), top, height: Math.max(0, py(0) - top), isCurrent: w.isCurrent, band: r === null ? null : loadBand(r) };
     })
   );
 
@@ -77,9 +87,6 @@
       : ''
   );
 
-  const PRODUCTIVE_LOW = 0.5;
-  const PRODUCTIVE_HIGH = 0.86;
-
   let totalWeeks = $derived(weeksShown + CHRONIC_WINDOW);
 
   // X-axis labels are each week's real start date ("5 Sep"), thinned to
@@ -90,25 +97,21 @@
   function weekLabel(i: number): string {
     return formatDateShort(bucketStartDate(i + CHRONIC_WINDOW, totalWeeks, 7));
   }
-  const LABEL_CHARS = 6; // "30 Sep"
-  let labelW = $derived(LABEL_CHARS * labelFontSize * 0.6); // mono font: ~0.6em per char
-  let labelGap = $derived(labelFontSize * 1.2);
-  let xTickStride = $derived(Math.max(1, Math.ceil((labelW + labelGap) / slotW)));
-  // Each label is centred under its week, but clamped inside the viewBox -
-  // on a narrow panel a date is wider than the half-slot between the last
-  // bar's centre and the edge. That clamp can push an edge label into its
-  // neighbour; then the edge label is dropped, keeping the rest evenly spaced.
-  let xTicks = $derived.by(() => {
-    const half = labelW / 2;
-    const ticks: { i: number; x: number }[] = [];
-    for (let i = weekly.length - 1; i >= 0; i -= xTickStride) {
-      ticks.push({ i, x: Math.min(VB_W - half, Math.max(half, M_LEFT + (i + 0.5) * slotW)) });
-    }
-    const minDist = labelW + labelGap / 2;
-    if (ticks.length > 1 && ticks[0]!.x - ticks[1]!.x < minDist) ticks.shift();
-    if (ticks.length > 1 && ticks[ticks.length - 2]!.x - ticks[ticks.length - 1]!.x < minDist) ticks.pop();
-    return ticks;
-  });
+  // Week labels are HTML at --fs-xs, so thin them in pixels: one label
+  // ("30 Sep", mono ~0.6em a character) plus a gap per stride.
+  const LABEL_CHARS = 6;
+  let labelPx = $derived(LABEL_CHARS * 11 * settingsStore.getTextScale() * 0.6 + 12);
+  // Labelled weeks, counted back from the latest so "this week" always is.
+  let labelled = $derived(axisLabelSlots(weekly.length, slotPx, labelPx));
+  // A month's first labelled week shows the month ("7 Aug"); the rest just
+  // the day ("14"), as the design's axis does.
+  function axisLabel(i: number): string {
+    const label = weekLabel(i);
+    const prev = [...labelled].filter((j) => j < i).sort((a, b) => b - a)[0];
+    return prev !== undefined && weekLabel(prev).split(' ')[1] === label.split(' ')[1] ? label.split(' ')[0]! : label;
+  }
+  // The ratio strip shows numbers only when a week's slot is wide enough.
+  let showRatioText = $derived(slotPx >= 38);
 
   // Hover tooltip: the whole week column is the hit area (not just the
   // bar, which can be tiny or empty), showing that week's real dates,
@@ -146,6 +149,7 @@
       load: Math.round(w.load),
       chronic: Math.round(chronic[hoverIdx] ?? 0),
       sessions: sessionsPerWeek[hoverIdx] ?? 0,
+      ratio: ratios[hoverIdx] ?? null,
       // Beside the hovered week, at the top of the plot - not above the
       // bar, where it would cover the panel's own Ratio/Status header on
       // this short chart - flipping to the left past the midpoint.
@@ -167,15 +171,6 @@
     onmousemove={handleMove}
     onmouseleave={() => (hoverIdx = null)}
   >
-    <rect x={M_LEFT} y={M_TOP} width={PLOT_W} height={PLOT_H} fill="var(--bg-well)" />
-    <rect
-      x={M_LEFT}
-      y={py(domainMax * PRODUCTIVE_HIGH)}
-      width={PLOT_W}
-      height={py(domainMax * PRODUCTIVE_LOW) - py(domainMax * PRODUCTIVE_HIGH)}
-      fill="var(--positive)"
-      fill-opacity="0.07"
-    />
 
     {#each yTicks as t (t)}
       <line x1={M_LEFT} y1={py(t)} x2={VB_W - M_RIGHT} y2={py(t)} stroke="var(--line-soft)" stroke-width="1" vector-effect="non-scaling-stroke" />
@@ -186,23 +181,59 @@
       <rect x={M_LEFT + hoverIdx * slotW} y={M_TOP} width={slotW} height={PLOT_H} fill="var(--ink-1)" opacity="0.05" />
     {/if}
 
+    {#if chronic.length > 1}
+      <path d={chronicAreaPath} fill="var(--accent)" opacity="0.06" />
+    {/if}
+
     {#each bars as b, i (b.x)}
-      <rect x={b.x} y={b.top} width={barW} height={b.height} fill={b.isCurrent || i === hoverIdx ? 'var(--neutral-bar-last)' : 'var(--neutral-bar)'} />
+      <rect
+        x={b.x}
+        y={b.top}
+        width={barW}
+        height={b.height}
+        rx="2"
+        fill={b.band ? `color-mix(in srgb, ${LOAD_BAND_COLOR[b.band]} ${i === hoverIdx ? 75 : 55}%, var(--bg-panel))` : i === hoverIdx ? 'var(--neutral-bar-last)' : 'var(--neutral-bar)'}
+        stroke={b.isCurrent ? 'var(--ink-1)' : 'none'}
+        stroke-width="1.5"
+        vector-effect="non-scaling-stroke"
+      />
     {/each}
 
     {#if chronic.length > 1}
-      <path d={chronicAreaPath} fill="var(--accent)" opacity="0.1" />
       <path d={chronicPath} fill="none" stroke="var(--accent)" stroke-width="1.6" vector-effect="non-scaling-stroke" />
+      {#if slotPx >= 14}
+        {#each chronic as v, i (i)}
+          <circle cx={M_LEFT + (i + 0.5) * slotW} cy={py(v)} r={Math.max(3, labelFontSize * 0.3)} fill="var(--bg-panel)" stroke="var(--accent)" stroke-width="1.6" vector-effect="non-scaling-stroke" />
+        {/each}
+      {/if}
     {/if}
-
-    {#each xTicks as { i, x } (i)}
-      <text x={x} y={VB_H - 4} text-anchor="middle" class="chart-axis-label">{weekLabel(i)}</text>
-    {/each}
   </svg>
+  <div class="week-rows" style="margin-left: {(M_LEFT / VB_W) * 100}%; margin-right: {(M_RIGHT / VB_W) * 100}%;">
+    <div class="ratio-strip">
+      {#each ratios as r, i (i)}
+        {@const band = r === null ? null : loadBand(r)}
+        <span
+          class="ratio-chip mono"
+          style={band ? `color: ${LOAD_BAND_COLOR[band]}; background: color-mix(in srgb, ${LOAD_BAND_COLOR[band]} ${showRatioText ? 16 : 45}%, var(--bg-panel));` : ''}
+          title={r === null ? 'no baseline yet' : `ratio ${r.toFixed(2)}`}>{showRatioText ? (r === null ? '—' : r.toFixed(2)) : ''}</span
+        >
+      {/each}
+    </div>
+    <div class="week-labels">
+      {#each weekly as _, i (i)}
+        <span class="week-label mono">{#if labelled.has(i)}<span class="week-label-text">{axisLabel(i)}</span>{/if}</span>
+      {/each}
+    </div>
+  </div>
   <!-- HTML rather than SVG text, so it renders at the type scale's real px
        size instead of shrinking with the viewBox on a narrow panel. -->
   <div class="load-legend" style="top: {(M_TOP / VB_H) * 100}%; right: {(M_RIGHT / VB_W) * 100}%;">
-    <span class="load-legend-item"><span class="load-legend-swatch bar"></span>weekly load</span>
+    <span class="load-legend-item" title="Bars are coloured by that week's ratio: detrain, productive, caution, risk">
+      <span class="load-legend-bands">
+        {#each Object.values(LOAD_BAND_COLOR) as c (c)}<span class="load-legend-swatch bar" style="background: color-mix(in srgb, {c} 55%, var(--bg-panel));"></span>{/each}
+      </span>
+      weekly load
+    </span>
     <span class="load-legend-item"><span class="load-legend-swatch line"></span>42d chronic</span>
   </div>
   {#if tooltip}
@@ -217,6 +248,15 @@
       <div class="chart-tooltip-row">
         <span class="chart-tooltip-label">42d chronic</span>
         <span class="chart-tooltip-value" style="color: var(--accent);">{tooltip.chronic} au</span>
+      </div>
+      <div class="chart-tooltip-row">
+        <span class="chart-tooltip-label">Ratio</span>
+        {#if tooltip.ratio === null}
+          <span class="chart-tooltip-value">no baseline yet</span>
+        {:else}
+          {@const band = loadBand(tooltip.ratio)}
+          <span class="chart-tooltip-value" style="color: {LOAD_BAND_COLOR[band]};">{tooltip.ratio.toFixed(2)} · {BAND_NAME[band]}</span>
+        {/if}
       </div>
       <div class="chart-tooltip-row">
         <span class="chart-tooltip-label">Sessions</span>
@@ -234,6 +274,55 @@
     width: 100%;
     height: auto;
     display: block;
+  }
+  .week-rows {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+  }
+  .ratio-strip,
+  .week-labels {
+    display: flex;
+  }
+  .ratio-chip {
+    flex: 1;
+    min-width: 0;
+    margin: 0 1px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 2px;
+    font-size: var(--fs-xs);
+    background: var(--bg-well);
+    color: var(--ink-6);
+  }
+  /* Each label is centred on its week, overflowing the narrow slot; the
+     first and last are pinned to the chart's edges instead, so they can't
+     be clipped (text overflowing its box ignores text-align). */
+  .week-label {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    height: 1.4em;
+    font-size: var(--fs-xs);
+    color: var(--ink-6);
+  }
+  .week-label-text {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+  .week-label:first-child .week-label-text {
+    left: 0;
+    transform: none;
+  }
+  .week-label:last-child .week-label-text {
+    left: auto;
+    right: 0;
+    transform: none;
   }
   .load-tooltip {
     margin-top: 0;
@@ -261,9 +350,12 @@
     display: inline-block;
     width: 8px;
   }
+  .load-legend-bands {
+    display: inline-flex;
+    gap: 1px;
+  }
   .load-legend-swatch.bar {
     height: 8px;
-    background: var(--neutral-line);
   }
   .load-legend-swatch.line {
     height: 2px;

@@ -6,8 +6,6 @@ import {
   loadStatus,
   acuteChronicRatio,
   runVolumeKm,
-  aerobicBasePercent,
-  timeTrained,
   activityLoad
 } from '../training-load';
 
@@ -141,31 +139,5 @@ describe('runVolumeKm', () => {
       activity({ sport: 'running', distanceKm: 10, date: daysAgoDate(10) }) // outside window
     ];
     expect(runVolumeKm(acts, 7)).toBeCloseTo(5, 5);
-  });
-});
-
-describe('aerobicBasePercent', () => {
-  it('returns null when no activity in the window has zone data', () => {
-    const acts = [activity({ date: daysAgoDate(0), timeInZoneSec: [] })];
-    expect(aerobicBasePercent(acts, 28)).toBeNull();
-  });
-
-  it('computes the Z2+ share, excluding Z1 (index 0)', () => {
-    const acts = [activity({ date: daysAgoDate(0), timeInZoneSec: [100, 200, 300, 0, 0] })];
-    // total = 600, z2+ = 600-100 = 500 -> 83.33%
-    expect(aerobicBasePercent(acts, 28)).toBeCloseTo((500 / 600) * 100, 5);
-  });
-});
-
-describe('timeTrained', () => {
-  it('sums minutes across sports and counts distinct sport families', () => {
-    const acts = [
-      activity({ sport: 'running', durationMin: 30, date: daysAgoDate(1) }),
-      activity({ sport: 'cycling', durationMin: 60, date: daysAgoDate(2) }),
-      activity({ sport: 'running', durationMin: 1000, date: daysAgoDate(10) }) // outside window
-    ];
-    const result = timeTrained(acts, 7);
-    expect(result.hours).toBeCloseTo(90 / 60, 5);
-    expect(result.sportCount).toBe(2);
   });
 });

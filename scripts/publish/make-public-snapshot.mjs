@@ -23,6 +23,7 @@ const EXCLUDE = [
   /^stub-data\//,
   /^design_handoff_[^/]+\//,
   /^\.claude\//,
+  /^AGENTS\.md$/,
   /^reports\//,
   /^bug-list[^/]*\.md$/,
   /^next-steps\.md$/,

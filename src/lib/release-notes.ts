@@ -11,6 +11,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.5.0',
+    date: '2026-10-01',
+    changes: [
+      'Today has a new look: six cards up top, each with a chart or breakdown (chronic load trend and ramp, VO₂ max rating, run volume, aerobic base, time per sport, and a recovery ring).',
+      'VO₂ max is now rated Poor to Superior for your age and sex. Add your birth year and sex in Settings → Training; both stay on your device.',
+      'Consistency: each day is coloured by its main sport and shaded by minutes, months are split apart, and it shows active days, best streak, week streak and how often you train each weekday.',
+      'Training load: your acute:chronic ratio on a Detrain / Productive / Caution / Risk scale, with advice for next week, bars and a per-week ratio strip coloured by band, and a key explaining each band.',
+      "Time in zone: your easy / moderate / hard split against polarised-training targets, each week's zone mix, and time per zone.",
+      'On wide screens, Recent Activities sits beside the charts.',
+      "Fixed: brief GPS altitude glitches no longer throw off an activity's altitude range."
+    ]
+  },
+  {
     version: '1.4.0',
     date: '2026-09-25',
     changes: [

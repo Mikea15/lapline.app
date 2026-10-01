@@ -18,7 +18,8 @@ import { computeAllRecords, milestoneLadders } from '../../src/lib/records.ts';
 import { criticalPaceCurves } from '../../src/lib/critical-pace.ts';
 import { currentVo2Max, weeklyVo2MaxTrend } from '../../src/lib/vo2max.ts';
 import { currentRecovery } from '../../src/lib/recovery.ts';
-import { weeklyLoadBuckets, trailingMean, acuteChronicRatio, weeklyRunVolumeKm, weeklyAerobicBasePercent } from '../../src/lib/training-load.ts';
+import { weeklyLoadBuckets, trailingMean, acuteChronicRatio } from '../../src/lib/training-load.ts';
+import { runVolumeBars, zoneSeconds } from '../../src/lib/today-kpis.ts';
 import { bestTimeForDistance, bestDistanceForDuration, kmSplitPaces } from '../../src/lib/best-effort.ts';
 import { smooth } from '../../src/lib/smoothing.ts';
 import { addDays, todayStr } from '../../src/lib/date-utils.ts';
@@ -64,8 +65,8 @@ export async function runFunctionBenchmarks(): Promise<TimingResult[]> {
       return acuteChronicRatio(activities);
     })
   );
-  results.push(await timeitAsync('training-load.weeklyRunVolumeKm (52 weeks)', () => weeklyRunVolumeKm(activities, 52)));
-  results.push(await timeitAsync('training-load.weeklyAerobicBasePercent (52 weeks)', () => weeklyAerobicBasePercent(activities, 52)));
+  results.push(await timeitAsync('today-kpis.runVolumeBars (1 year)', () => runVolumeBars(activities, 365)));
+  results.push(await timeitAsync('today-kpis.zoneSeconds (1 year)', () => zoneSeconds(activities, 365)));
 
   // Best-effort search runs over one real activity's full record stream -
   // the per-activity Activity screen path, not the whole-history one above.

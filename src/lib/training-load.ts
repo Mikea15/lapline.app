@@ -62,6 +62,24 @@ export function loadStatus(ratio: number): LoadStatus {
   return 'Overreaching';
 }
 
+// The same thresholds as loadStatus, under the names Today's Training load
+// panel uses for its band strip and per-week ratio chips.
+export type LoadBand = 'detrain' | 'productive' | 'caution' | 'risk';
+
+export function loadBand(ratio: number): LoadBand {
+  if (ratio < 0.8) return 'detrain';
+  if (ratio <= 1.3) return 'productive';
+  if (ratio <= 1.5) return 'caution';
+  return 'risk';
+}
+
+export const LOAD_BAND_COLOR: Record<LoadBand, string> = {
+  detrain: 'var(--zone-1)',
+  productive: 'var(--positive)',
+  caution: 'var(--caution)',
+  risk: 'var(--alert)'
+};
+
 export interface AcuteChronic {
   acute7d: number;
   chronic42d: number; // mean weekly load over the trailing 42 days
@@ -89,66 +107,4 @@ export function runVolumeKm(activities: Activity[], days: number): number {
   return activities
     .filter((a) => sportFamily(a.sport) === 'running' && daysAgo(a.date) < days && daysAgo(a.date) >= 0)
     .reduce((s, a) => s + a.distanceKm, 0);
-}
-
-// Share of trailing-window time spent at or above Z2 ("aerobic base"), from
-// each activity's recorded time-in-zone breakdown (zones are 1-indexed;
-// index 0 is Z1). Activities with no zone data are excluded rather than
-// counted as 0, so a mixed-device history doesn't drag the % down.
-export function aerobicBasePercent(activities: Activity[], days: number): number | null {
-  let z2Plus = 0;
-  let total = 0;
-  for (const a of activities) {
-    const age = daysAgo(a.date);
-    if (age < 0 || age >= days) continue;
-    if (a.timeInZoneSec.length !== 5) continue;
-    const sum = a.timeInZoneSec.reduce((s, v) => s + v, 0);
-    if (sum <= 0) continue;
-    total += sum;
-    z2Plus += sum - a.timeInZoneSec[0]!;
-  }
-  return total > 0 ? (z2Plus / total) * 100 : null;
-}
-
-// Weekly series (oldest -> newest) backing each real KPI's sparkline.
-export function weeklyRunVolumeKm(activities: Activity[], numWeeks: number): number[] {
-  const km = new Array(numWeeks).fill(0) as number[];
-  for (const a of activities) {
-    if (sportFamily(a.sport) !== 'running') continue;
-    const idx = bucketIndexForDate(a.date, numWeeks, 7);
-    if (idx !== null) km[idx]! += a.distanceKm;
-  }
-  return km;
-}
-
-export function weeklyAerobicBasePercent(activities: Activity[], numWeeks: number): (number | null)[] {
-  const z2Plus = new Array(numWeeks).fill(0) as number[];
-  const total = new Array(numWeeks).fill(0) as number[];
-  for (const a of activities) {
-    const idx = bucketIndexForDate(a.date, numWeeks, 7);
-    if (idx === null || a.timeInZoneSec.length !== 5) continue;
-    const sum = a.timeInZoneSec.reduce((s, v) => s + v, 0);
-    if (sum <= 0) continue;
-    total[idx]! += sum;
-    z2Plus[idx]! += sum - a.timeInZoneSec[0]!;
-  }
-  return total.map((t, i) => (t > 0 ? (z2Plus[i]! / t) * 100 : null));
-}
-
-export function weeklyTimeTrainedHours(activities: Activity[], numWeeks: number): number[] {
-  const hours = new Array(numWeeks).fill(0) as number[];
-  for (const a of activities) {
-    const idx = bucketIndexForDate(a.date, numWeeks, 7);
-    if (idx !== null) hours[idx]! += a.durationMin / 60;
-  }
-  return hours;
-}
-
-// Total trained time (all sports) in the trailing window, for the "Time
-// trained" KPI, plus the count of distinct sport families involved.
-export function timeTrained(activities: Activity[], days: number): { hours: number; sportCount: number } {
-  const inWindow = activities.filter((a) => daysAgo(a.date) < days && daysAgo(a.date) >= 0);
-  const minutes = inWindow.reduce((s, a) => s + a.durationMin, 0);
-  const sports = new Set(inWindow.map((a) => sportFamily(a.sport)));
-  return { hours: minutes / 60, sportCount: sports.size };
 }

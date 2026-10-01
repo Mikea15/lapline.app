@@ -37,3 +37,24 @@ export function chartLabelFontSize(viewBoxWidth: number, containerWidthPx: numbe
   if (containerWidthPx <= 0) return targetPx; // not measured yet (first paint) - a reasonable fallback, not 0
   return (targetPx * viewBoxWidth) / containerWidthPx;
 }
+
+/** Which of `n` equal slots get an axis label, for labels `labelPx` wide
+ *  (gap included) over slots `slotPx` wide: every `stride`-th slot counting
+ *  back from the last, so the newest is always labelled. The first and last
+ *  slots' labels are pinned to the chart's edges rather than centred (so
+ *  they aren't clipped), which pushes them toward their neighbour - a
+ *  neighbour that would then overlap is dropped. */
+export function axisLabelSlots(n: number, slotPx: number, labelPx: number, gapPx = 12): Set<number> {
+  const stride = Math.max(1, Math.ceil(labelPx / Math.max(1, slotPx)));
+  const slots = new Set<number>();
+  for (let i = n - 1; i >= 0; i -= stride) slots.add(i);
+  // A pinned edge label covers a full label width inward from the slot's
+  // outer edge; its neighbour, centred, needs half a label plus the gap.
+  const labelW = labelPx - gapPx;
+  const fits = stride * slotPx + slotPx / 2 >= labelW * 1.5 + gapPx;
+  if (!fits) {
+    if (n - 1 - stride >= 0) slots.delete(n - 1 - stride);
+    if (slots.has(0) && n - 1 !== 0) slots.delete(stride);
+  }
+  return slots;
+}

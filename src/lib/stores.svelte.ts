@@ -13,6 +13,7 @@ import { fitManufacturer, fitFailureReason, gpxFailureReason } from './import-fa
 import type { Entry, Activity, RecordPoint, Goal, Setting, ParsedActivity, ActivityDetail, StoredFitFile } from './types';
 import type { UnitSystem } from './units';
 import { isRangePreset, type RangePreset } from './range-preset';
+import type { Sex } from './today-kpis';
 
 function isGpxFile(filename: string): boolean {
   return filename.toLowerCase().endsWith('.gpx');
@@ -206,6 +207,21 @@ export const settingsStore = {
   getMaxHr(): number {
     const v = parseInt(_settings.max_hr || '', 10);
     return (!isNaN(v) && v > 0) ? v : 0;
+  },
+
+  // Settings > Training > Birth year and Sex: only used to pick the age/sex
+  // row of Today's VO2max rating bands (lib/today-kpis.ts). null until set.
+  getBirthYear(): number | null {
+    const v = parseInt(_settings.birth_year || '', 10);
+    return !isNaN(v) && v > 1900 ? v : null;
+  },
+  getAge(): number | null {
+    const y = this.getBirthYear();
+    return y === null ? null : new Date().getFullYear() - y;
+  },
+  getSex(): Sex | null {
+    const v = _settings.sex;
+    return v === 'female' || v === 'male' ? v : null;
   },
 
   getUnitSystem(): UnitSystem {

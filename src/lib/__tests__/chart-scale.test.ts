@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { chartLabelFontSize } from '../chart-scale';
+import { chartLabelFontSize, axisLabelSlots } from '../chart-scale';
 
 describe('chartLabelFontSize', () => {
   it('returns a smaller viewBox-unit size for a chart whose viewBox is wide relative to its container', () => {
@@ -24,5 +24,28 @@ describe('chartLabelFontSize', () => {
   it('falls back to the target size when the container has not been measured yet', () => {
     expect(chartLabelFontSize(1000, 0, 12)).toBe(12);
     expect(chartLabelFontSize(1000, -5, 12)).toBe(12);
+  });
+});
+
+describe('axisLabelSlots', () => {
+  it('labels every slot when they are wide enough', () => {
+    expect([...axisLabelSlots(4, 100, 52)].sort()).toEqual([0, 1, 2, 3]);
+  });
+
+  it('thins to every stride-th slot back from the last', () => {
+    // 22px slots, 52px labels -> stride 3; 3*22 + 11 = 77 >= 40*1.5 + 12.
+    expect([...axisLabelSlots(10, 22, 52)].sort((a, b) => a - b)).toEqual([0, 3, 6, 9]);
+  });
+
+  it("drops both edge labels' neighbours when they'd overlap", () => {
+    // 20px slots -> stride 3; 3*20 + 10 = 70 < 72.
+    expect([...axisLabelSlots(10, 20, 52)].sort((a, b) => a - b)).toEqual([0, 9]);
+  });
+
+  it("drops the last label's neighbour when the pinned edge label would overlap it", () => {
+    // 30px slots, 52px labels -> stride 2; 2*30 + 15 = 75 >= 72, fits.
+    expect([...axisLabelSlots(6, 30, 52)].sort((a, b) => a - b)).toEqual([1, 3, 5]);
+    // 26px slots -> stride 2; 2*26 + 13 = 65 < 72, so slot 3 goes.
+    expect([...axisLabelSlots(6, 26, 52)].sort((a, b) => a - b)).toEqual([1, 5]);
   });
 });

@@ -8,9 +8,12 @@
     text: string;
     tip: string;
     class?: string;
+    /** Always open below the label - for labels at the very top of the
+        page, where a tip opening upward would be cut off. */
+    openBelow?: boolean;
   }
 
-  let { text, tip, class: className = '' }: Props = $props();
+  let { text, tip, class: className = '', openBelow = false }: Props = $props();
 
   // Hover/keyboard focus open the tip through CSS alone (global.css). A
   // touchscreen has neither, so a tap toggles it open here instead - and
@@ -61,7 +64,7 @@
   type="button"
   class="info-label {className}"
   class:open
-  class:below
+  class:below={below || openBelow}
   bind:this={buttonEl}
   aria-expanded={open}
   onclick={toggle}
