@@ -4,6 +4,8 @@
 interface ImportMetaEnv {
   // Domain registered with the analytics provider - see src/lib/analytics.ts.
   readonly VITE_ANALYTICS_DOMAIN?: string;
+  /** CARTO basemaps key for the opt-in map backgrounds (lib/map-tiles.ts). */
+  readonly VITE_MAP_TILES_KEY?: string;
 }
 
 interface ImportMeta {

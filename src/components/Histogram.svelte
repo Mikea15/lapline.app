@@ -4,6 +4,7 @@
      fixed count - a handful of points no longer gets spread thin across many
      empty bins, and a big sample gets finer resolution than a small one. -->
 <script lang="ts">
+  import { touchHover } from '../lib/touch-hover';
   interface Props {
     values: number[];
     formatValue: (v: number) => string;
@@ -86,7 +87,7 @@
   {#if n === 0}
     <div class="empty-state" style="padding: var(--space-10) var(--space-4);">{emptyText}</div>
   {:else}
-    <svg viewBox="0 0 {VB_W} {PLOT_H}" preserveAspectRatio="none" class="hist-svg" role="img" aria-label="Distribution histogram">
+    <svg use:touchHover viewBox="0 0 {VB_W} {PLOT_H}" preserveAspectRatio="none" class="hist-svg" role="img" aria-label="Distribution histogram">
       {#each bins as count, i (i)}
         {@const h = (count / maxCount) * PLOT_H}
         {@const inModalBand = Math.abs(i - modalBinIndex) <= 1}

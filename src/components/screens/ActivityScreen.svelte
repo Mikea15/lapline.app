@@ -495,7 +495,7 @@
     <ActivityFilterBar bind:activityTypes={activityTypeFilter} />
     <div class="panel activities-list-panel">
       {#if allActivities.length === 0}
-        <div class="empty-state">No activities yet. Choose Sync to add your first.</div>
+        <div class="empty-state">No activities yet. Sync your first activity now!</div>
       {:else if sortedActivities.length === 0}
         <div class="empty-state">No activities match this filter.</div>
       {:else}
@@ -607,7 +607,7 @@
       {#snippet timeInZonePanel()}
         <div class="panel">
           <div class="panel-head">
-            <span class="panel-label">Time in zone</span>
+            <span class="panel-label">Time in HR Zones</span>
           </div>
           <div class="mt-4">
             <TimeInZones timeInZoneSec={detail!.timeInZoneSec} hrZoneBoundaries={detail!.hrZoneBoundaries} />
@@ -726,6 +726,7 @@
                     {hoveredLapIndex}
                     onHoverLap={(i) => (hoveredLapIndex = i)}
                     locationLabel={detail.locationLabel}
+                    mapTiles={settingsStore.getMapTilesEnabled()}
                   />
                 {:else}
                   <RouteMap

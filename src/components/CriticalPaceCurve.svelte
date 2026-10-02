@@ -1,5 +1,6 @@
 <!-- CriticalPaceCurve.svelte - best sustained pace per duration, the selected range vs the one before it. -->
 <script lang="ts">
+  import { touchHover } from '../lib/touch-hover';
   import type { CriticalPaceCurves } from '../lib/critical-pace';
   import { formatPace, type UnitSystem } from '../lib/units';
   import { chartLabelFontSize, chartViewBoxHeight } from '../lib/chart-scale';
@@ -125,7 +126,7 @@
   <div class="empty-state" style="padding: var(--space-10) var(--space-4);">Not enough running history yet.</div>
 {:else}
   <div class="curve-wrap" bind:clientWidth={containerWidth}>
-    <svg viewBox="0 0 {VB_W} {VB_H}" class="curve-svg" style="--chart-label-fs: {labelFontSize}px" role="img" aria-label="Critical pace curve">
+    <svg use:touchHover viewBox="0 0 {VB_W} {VB_H}" class="curve-svg" style="--chart-label-fs: {labelFontSize}px" role="img" aria-label="Critical pace curve">
       {#each [0, 0.33, 0.66, 1] as f (f)}
         <line x1="0" y1={M_TOP + f * PLOT_H} x2={VB_W} y2={M_TOP + f * PLOT_H} stroke="var(--line-soft)" stroke-width="1" vector-effect="non-scaling-stroke" />
       {/each}

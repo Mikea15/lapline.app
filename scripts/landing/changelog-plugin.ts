@@ -11,6 +11,7 @@ import type { Plugin } from 'vite';
 import { RELEASE_NOTES } from '../../src/lib/release-notes';
 import { CONTACT_EMAIL, DONATE_URL, X_URL } from '../../src/lib/links';
 import { PREPAINT_THEME_SCRIPT } from '../../src/lib/theme';
+import { logoTickSvg, WORDMARK_HTML } from '../../src/lib/logo';
 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -35,9 +36,9 @@ const SITE_HEADER = `<header class="l-top">
         <a class="l-brand" href="/?home" aria-label="Lapline home">
           <svg width="20" height="20" viewBox="0 0 64 64" aria-hidden="true">
             <rect x="8" y="18" width="48" height="28" rx="14" fill="none" stroke="currentColor" stroke-width="6" />
-            <line x1="40" y1="12" x2="40" y2="24" stroke="var(--accent)" stroke-width="6" stroke-linecap="round" />
+            ${logoTickSvg()}
           </svg>
-          lapline
+          <span>${WORDMARK_HTML}</span>
         </a>
         <nav class="l-nav" aria-label="Site">
           <a href="/?home#features">Features</a>

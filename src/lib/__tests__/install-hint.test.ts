@@ -9,13 +9,15 @@ const UA = {
   macChrome: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36',
   macEdge: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0',
   androidChrome: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Mobile Safari/537.36',
-  windowsFirefox: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0'
+  windowsFirefox: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:130.0) Gecko/20100101 Firefox/130.0',
+  macFirefox: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:130.0) Gecko/20100101 Firefox/130.0'
 };
 
-const env = (userAgent: string, extra: { standalone?: boolean; maxTouchPoints?: number } = {}) => ({
+const env = (userAgent: string, extra: { standalone?: boolean; maxTouchPoints?: number; otherIosBrowser?: boolean } = {}) => ({
   userAgent,
   standalone: extra.standalone ?? false,
-  maxTouchPoints: extra.maxTouchPoints ?? 0
+  maxTouchPoints: extra.maxTouchPoints ?? 0,
+  otherIosBrowser: extra.otherIosBrowser ?? false
 });
 
 describe('installHint', () => {
@@ -32,8 +34,12 @@ describe('installHint', () => {
     expect(installHint(env(UA.iphoneSafari, { standalone: true }))).toBeNull();
     expect(installHint(env(UA.macSafari, { standalone: true }))).toBeNull();
   });
+  it('says nothing to Firefox or Chrome on iPad, which send Safari’s user agent', () => {
+    expect(installHint(env(UA.macSafari, { maxTouchPoints: 5, otherIosBrowser: true }))).toBeNull();
+    expect(installHint(env(UA.iphoneSafari, { maxTouchPoints: 5, otherIosBrowser: true }))).toBeNull();
+  });
   it('says nothing in other browsers', () => {
-    for (const ua of [UA.iphoneChrome, UA.iphoneFirefox, UA.macChrome, UA.macEdge, UA.androidChrome, UA.windowsFirefox]) {
+    for (const ua of [UA.iphoneChrome, UA.iphoneFirefox, UA.macChrome, UA.macEdge, UA.androidChrome, UA.windowsFirefox, UA.macFirefox]) {
       expect(installHint(env(ua))).toBeNull();
     }
   });

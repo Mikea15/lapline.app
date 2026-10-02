@@ -8,7 +8,7 @@
 
 ## Privacy
 
-Your activity files are parsed in your browser and stored in your browser's own database (IndexedDB). They never leave your device, and there's no server that could receive them. Three optional features talk to the network, and all of them are **off until you turn them on** in Settings: anonymous usage analytics (SimpleAnalytics: which screens and features are used, never activity data), place names for activities (sends an activity's start coordinate to OpenStreetMap's Nominatim) and weather (sends an activity's start coordinate and date to Open-Meteo). To move to another browser or device, use Settings > Backup to export everything as one zip and restore it there.
+Your activity files are parsed in your browser and stored in your browser's own database (IndexedDB). They never leave your device, and there's no server that could receive them. Four optional features talk to the network, and all of them are **off until you turn them on** in Settings: anonymous usage analytics (SimpleAnalytics: which screens and features are used, never activity data), place names for activities (sends an activity's start coordinate to OpenStreetMap's Nominatim) weather (sends an activity's start coordinate and date to Open-Meteo) and map backgrounds (loads map images of a route's area from CARTO). To move to another browser or device, use Settings > Backup to export everything as one zip and restore it there.
 
 ## Development
 

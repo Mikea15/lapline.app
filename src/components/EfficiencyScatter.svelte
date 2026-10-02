@@ -2,6 +2,7 @@
      for every run in range, with a linear regression line. Pace is inverted
      on the y-axis (faster at top), so up-left is fitter. -->
 <script lang="ts">
+  import { touchHover } from '../lib/touch-hover';
   import type { Activity } from '../lib/types';
   import { chartLabelFontSize, chartViewBoxHeight } from '../lib/chart-scale';
   import { formatDateShort } from '../lib/date-utils';
@@ -93,13 +94,35 @@
 
   let hoverIndex = $state<number | null>(null);
   let hoverPoint = $derived(hoverIndex !== null ? points[hoverIndex]! : null);
+
+  // The nearest run to the pointer, within a finger's width - small dots are
+  // hard to land on exactly, with a mouse and much more so with a finger.
+  const PICK_RADIUS_PX = 28;
+  function handleMove(e: MouseEvent) {
+    const svg = e.currentTarget as SVGSVGElement;
+    const rect = svg.getBoundingClientRect();
+    const scale = Math.min(rect.width / VB_W, rect.height / VB_H);
+    const ox = rect.left + (rect.width - VB_W * scale) / 2;
+    const oy = rect.top + (rect.height - VB_H * scale) / 2;
+    let best: number | null = null;
+    let bestD = PICK_RADIUS_PX;
+    points.forEach((p, i) => {
+      const d = Math.hypot(ox + px(p.hr) * scale - e.clientX, oy + py(p.pace) * scale - e.clientY);
+      if (d <= bestD) {
+        bestD = d;
+        best = i;
+      }
+    });
+    hoverIndex = best;
+  }
 </script>
 
 <div class="scatter-wrap" bind:clientWidth={containerWidth}>
   {#if points.length < 2}
     <div class="empty-state" style="padding: var(--space-10) var(--space-4);">Not enough running data with HR yet.</div>
   {:else}
-    <svg viewBox="0 0 {VB_W} {VB_H}" class="scatter-svg" style="--chart-label-fs: {labelFontSize}px" role="img" aria-label="Aerobic efficiency scatter">
+    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+    <svg use:touchHover viewBox="0 0 {VB_W} {VB_H}" class="scatter-svg" style="--chart-label-fs: {labelFontSize}px" role="img" aria-label="Aerobic efficiency scatter" onmousemove={handleMove} onmouseleave={() => (hoverIndex = null)}>
       {#each [0.25, 0.5, 0.75] as f (f)}
         <line x1={M + f * PLOT_W} y1="10" x2={M + f * PLOT_W} y2={10 + PLOT_H} stroke="var(--line-soft)" stroke-width="1" vector-effect="non-scaling-stroke" />
         <line x1={M} y1={10 + f * PLOT_H} x2={M + PLOT_W} y2={10 + f * PLOT_H} stroke="var(--line-soft)" stroke-width="1" vector-effect="non-scaling-stroke" />
@@ -114,7 +137,6 @@
         <path d={regressionPath} stroke="var(--accent)" stroke-width="1.5" vector-effect="non-scaling-stroke" />
       {/if}
 
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
       {#each points as p, i (p.id)}
         {@const recent = i >= points.length - 5}
         {@const isLast = i === points.length - 1}
@@ -126,9 +148,6 @@
           stroke={isLast ? 'var(--bg-well)' : recent ? 'var(--accent)' : 'var(--neutral-line)'}
           stroke-width={isLast ? 2 : 1}
         />
-        <!-- Transparent, larger hit target layered on top - the visible dot
-             is often too small (3.4px radius) to reliably hover. -->
-        <circle cx={px(p.hr)} cy={py(p.pace)} r="8" fill="transparent" onmouseenter={() => (hoverIndex = i)} onmouseleave={() => (hoverIndex = null)} />
       {/each}
     </svg>
     {#if hoverPoint}

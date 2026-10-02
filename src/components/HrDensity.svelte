@@ -6,6 +6,7 @@
      the activity) plus an always-present aria-label with the same real
      numbers, so the data isn't hover-only for keyboard/screen-reader use. -->
 <script lang="ts">
+  import { touchHover } from '../lib/touch-hover';
   import { buildHrDensityBins } from '../lib/hr-density';
   import { ZONE_COLORS, ZONE_NAMES } from '../lib/hr-zones';
   import { formatClock } from '../lib/date-utils';
@@ -36,7 +37,7 @@
 </script>
 
 {#if hasData}
-  <div class="hr-density">
+  <div class="hr-density" use:touchHover>
     {#each bins as bin, i (i)}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->

@@ -3,8 +3,9 @@
      is Dexie/IndexedDB only, and the complete list of network requests is
      loading the app itself (and, on request, its bundled sample files) from
      its own host, the SimpleAnalytics script and events (lib/analytics.ts,
-     opt-in), Nominatim reverse geocoding (lib/geocode.ts, opt-in) and
-     Open-Meteo's weather archive (lib/weather.ts, opt-in). Keep this in step
+     opt-in), Nominatim reverse geocoding (lib/geocode.ts, opt-in),
+     Open-Meteo's weather archive (lib/weather.ts, opt-in) and CARTO's map
+     tiles (lib/map-tiles.ts, opt-in). Keep this in step
      with those files - and with the event names passed to trackEvent - when
      either changes. -->
 <div class="card" style="max-width: 688px;">
@@ -73,10 +74,22 @@
 </div>
 
 <div class="card mt-4" style="max-width: 688px;">
+  <span class="section-title">Map backgrounds (off unless you turn it on)</span>
+  <p style="margin: var(--space-3) 0 0; color: var(--ink-secondary); font-size: var(--fs-md);">
+    If you turn on <strong>Settings → Map backgrounds</strong>, the route map on an activity with
+    GPS data loads map images of that area from <strong>CARTO</strong> (map data from OpenStreetMap).
+    The route itself is never sent: the app asks for the square map tiles that cover the part of
+    the map you're looking at, so CARTO can tell roughly which area it is, at street level. As with
+    any web request, CARTO also sees your IP address and that the request came from Lapline. Your
+    browser may keep the tiles in its cache, so reopening an activity may send nothing.
+  </p>
+</div>
+
+<div class="card mt-4" style="max-width: 688px;">
   <span class="section-title">That's the complete list</span>
   <p style="margin: var(--space-3) 0 0; color: var(--ink-secondary); font-size: var(--fs-md);">
-    GitHub Pages (the host) and, only if you turn them on, SimpleAnalytics, Nominatim and
-    Open-Meteo are the only services Lapline talks to, and each receives only what's described
+    GitHub Pages (the host) and, only if you turn them on, SimpleAnalytics, Nominatim,
+    Open-Meteo and CARTO are the only services Lapline talks to, and each receives only what's described
     above. If a future feature needs another service, it will be off until you turn it on and
     it will be listed here first.
   </p>

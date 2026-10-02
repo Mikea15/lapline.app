@@ -5,6 +5,7 @@
      row. Two-way hover-linked with the route/effort-tape scrub cursor via
      the same hoveredLapIndex convention RouteMap already uses. -->
 <script lang="ts">
+  import { touchHover } from '../lib/touch-hover';
   import Sparkline from './Sparkline.svelte';
   import { lapHrTrace, lapZoneMix } from '../lib/lap-detail';
   import { ZONE_COLORS } from '../lib/hr-zones';
@@ -82,7 +83,7 @@
   }
 </script>
 
-<div class="km-tiles">
+<div class="km-tiles" use:touchHover>
   {#each laps as lap, i (lap.index)}
     {@const trace = lapHrTrace(lap, t, hr)}
     {@const mix = lapZoneMix(lap, t, hr, hrZoneBoundaries)}

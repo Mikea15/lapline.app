@@ -2,6 +2,7 @@
      Used for both calendar-date trends and within-activity time-series -
      the caller supplies already-numeric x plus formatters for labels. -->
 <script lang="ts">
+  import { touchHover } from '../lib/touch-hover';
   interface Point {
     x: number;
     y: number;
@@ -275,7 +276,7 @@
 {:else}
   <div class="line-chart-wrap" bind:this={wrapEl}>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <svg viewBox="0 0 {VB_W} {VB_H}" class="line-chart-svg" role="img" aria-label={ariaLabel} onmousemove={handleMove} onmouseleave={handleLeave}>
+    <svg use:touchHover viewBox="0 0 {VB_W} {VB_H}" class="line-chart-svg" role="img" aria-label={ariaLabel} onmousemove={handleMove} onmouseleave={handleLeave}>
       {#each bands as b (b.y0 + '-' + b.y1 + b.color)}
         <rect
           x={M_LEFT}

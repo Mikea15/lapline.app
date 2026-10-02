@@ -167,8 +167,18 @@
   // either edge.
   let tooltipFlip = $derived(cursorPct !== null && cursorPct > 55);
 
-  function handleMove(e: MouseEvent) {
+  // Pointer events cover mouse, touch and pen. Mouse scrubs on hover and
+  // clears on leave; a finger scrubs while it drags along the tape (a
+  // vertical swipe still scrolls the page - touch-action: pan-y) and the
+  // position stays put when it lifts, so the readout can be read.
+  function handleDown(e: PointerEvent) {
+    if (e.pointerType === 'mouse') return;
+    handleMove(e);
+  }
+
+  function handleMove(e: PointerEvent) {
     if (!tapeEl || t.length === 0) return;
+    if (e.pointerType !== 'mouse' && e.buttons === 0 && e.type === 'pointermove') return;
     pointerOver = true;
     const rect = tapeEl.getBoundingClientRect();
     const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -176,7 +186,8 @@
     keyboardLapIndex = null;
   }
 
-  function handleLeave() {
+  function handleLeave(e: PointerEvent) {
+    if (e.pointerType !== 'mouse') return;
     pointerOver = false;
     syncSeconds = null;
     keyboardLapIndex = null;
@@ -232,8 +243,9 @@
     class="effort-tape-box"
     style:height={chartHeight !== null ? `${chartHeight}px` : null}
     bind:this={tapeEl}
-    onmousemove={handleMove}
-    onmouseleave={handleLeave}
+    onpointerdown={handleDown}
+    onpointermove={handleMove}
+    onpointerleave={handleLeave}
     onblur={handleBlur}
     onkeydown={handleKeydown}
     role="slider"
@@ -335,6 +347,9 @@
     transition: height 0.35s ease;
     cursor: crosshair;
     border-radius: var(--radius-sm);
+    touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
   }
   .effort-tape-box:focus-visible {
     outline: 2px solid var(--accent);

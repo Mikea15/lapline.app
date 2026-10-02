@@ -576,6 +576,10 @@ label {
   gap: var(--space-7);
   flex-shrink: 0;
 }
+.wordmark-e {
+  color: var(--accent);
+}
+
 /* The sun/moon theme toggle sits tight against Sync, as one pair. */
 .header-right .theme-btn {
   margin-right: calc(var(--space-4) - var(--space-7));

@@ -1,7 +1,7 @@
 // landing/main.ts - the site pages around the app (the home page, guides and
 // changelog). The pages are plain HTML; this adds their styles, the theme
 // toggle in the shared header, and on the home page the decorative charts,
-// the hero's speedlines, the example opt-in switches, the per-device export
+// the hero's speedlines, the per-device export
 // steps (the same data as the app's Import dialog, lib/import-guides.ts)
 // and the tour video.
 import './landing.css';
@@ -9,8 +9,10 @@ import { IMPORT_GUIDES, stepParts } from '../lib/import-guides';
 import { initPublicAnalytics } from './analytics';
 import { applyTheme, currentTheme, getThemePref, setThemePref, watchTheme } from '../lib/theme';
 import { startSpeedlines } from './speedlines';
+import { initLogoLaps } from '../lib/logo';
 
 initPublicAnalytics();
+initLogoLaps();
 
 // ----- Theme toggle (every site page) -----
 
@@ -90,12 +92,6 @@ for (const el of document.querySelectorAll<HTMLElement>('[data-viz]')) {
 
 const speed = document.querySelector<HTMLCanvasElement>('.h-speed');
 if (speed) startSpeedlines(speed);
-
-// ----- Example opt-in switches: they only flip, nothing is saved or sent -----
-
-for (const sw of document.querySelectorAll<HTMLButtonElement>('.h-optin')) {
-  sw.addEventListener('click', () => sw.setAttribute('aria-checked', String(sw.getAttribute('aria-checked') !== 'true')));
-}
 
 // ----- Per-device export steps -----
 

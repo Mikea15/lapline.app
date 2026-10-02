@@ -7,6 +7,7 @@
      Hand-rolled SVG (no chart lib); the strip and dates are HTML laid out
      on the same week slots, so they stay at the type scale's real size. -->
 <script lang="ts">
+  import { touchHover } from '../lib/touch-hover';
   import type { Activity } from '../lib/types';
   import { weeklyLoadBuckets, trailingMean, loadBand, LOAD_BAND_COLOR, LOAD_BAND_LABEL } from '../lib/training-load';
   import { chartLabelFontSize, chartViewBoxHeight, axisLabelSlots } from '../lib/chart-scale';
@@ -161,6 +162,7 @@
 
 <div class="load-chart-wrap" bind:clientWidth={containerWidth}>
   <svg
+    use:touchHover
     viewBox="0 0 {VB_W} {VB_H}"
     class="load-chart-svg"
     style="--chart-label-fs: {labelFontSize}px"

@@ -4,6 +4,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { themeStore } from './lib/theme-store.svelte';
+  import { logoTickSvg, initLogoLaps, WORDMARK_HTML } from './lib/logo';
   import Icon from './components/Icon.svelte';
   import SettingsPanel from './components/SettingsPanel.svelte';
   import ImportPanel from './components/ImportPanel.svelte';
@@ -247,6 +248,7 @@
 
   onMount(async () => {
     themeStore.init();
+    initLogoLaps();
     setAnalyticsEnabled(settingsStore.getAnalyticsEnabled());
     // The landing page's "Try it with sample data" opens /app/?sample=1.
     // Loads the samples into an empty browser; with data already here the
@@ -412,12 +414,13 @@
 <div class="shell">
   <aside class="sidebar">
     <div class="wordmark">
-      <!-- Logo A, "the track": a running-track oval with a teal start/finish line. -->
+      <!-- Logo A, "the track": a running-track oval with a teal start/finish
+           line, which runs one lap on load (lib/logo.ts). -->
       <svg class="wordmark-mark" width="20" height="20" viewBox="0 0 64 64" aria-hidden="true">
         <rect x="8" y="18" width="48" height="28" rx="14" fill="none" stroke="var(--ink-1)" stroke-width="6" />
-        <line x1="40" y1="12" x2="40" y2="24" stroke="var(--accent)" stroke-width="6" stroke-linecap="round" />
+        {@html logoTickSvg()}
       </svg>
-      lapline
+      <span>{@html WORDMARK_HTML}</span>
     </div>
     <div class="sidebar-sublabel">Training Analysis</div>
 

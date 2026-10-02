@@ -6,7 +6,9 @@
      specific rendering (ground plane, drop stems, elevation lift) that a
      flat plan view has no use for. -->
 <script lang="ts">
-  import { projectFlatRoute } from '../lib/flat-route';
+  import { projectFlatRoute, routeFrame } from '../lib/flat-route';
+  import { tilesFor, MAP_ATTRIBUTION } from '../lib/map-tiles';
+  import { themeStore } from '../lib/theme-store.svelte';
   import { ZONE_COLORS, zoneIndexForHr } from '../lib/hr-zones';
   import { fitViewBox, viewBoxAttr } from '../lib/view-box';
   import { lapPinFixes } from '../lib/lap-pins';
@@ -26,9 +28,11 @@
     hoveredLapIndex?: number | null;
     onHoverLap?: (index: number | null) => void;
     locationLabel?: string;
+    /** Draw map tiles under the route (Settings > Map backgrounds, opt-in). */
+    mapTiles?: boolean;
   }
 
-  let { lat, lon, hr, hrZoneBoundaries, scrubIndex, distance = [], laps = [], hoveredLapIndex = null, onHoverLap, locationLabel }: Props = $props();
+  let { lat, lon, hr, hrZoneBoundaries, scrubIndex, distance = [], laps = [], hoveredLapIndex = null, onHoverLap, locationLabel, mapTiles = false }: Props = $props();
 
   interface Fix {
     i: number;
@@ -51,6 +55,7 @@
   });
 
   let points = $derived(fixes.length >= 2 ? projectFlatRoute(fixes) : null);
+  let frame = $derived(fixes.length >= 2 ? routeFrame(fixes) : null);
 
   function pathFor(pts: { x: number; y: number }[]): string {
     return pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
@@ -95,6 +100,24 @@
   let svgW = $state(0);
   let svgH = $state(0);
   let px = $derived(svgW > 0 && svgH > 0 ? 1 / Math.min(svgW / vb.w, svgH / vb.h) : vb.unit);
+
+  // Map tiles behind the route: everything the "meet"-fitted SVG actually
+  // shows (wider or taller than the route's own box), at its pixel density.
+  // A refused or failed tile (offline, a key not valid for this site)
+  // turns the map off for this view rather than leaving holes.
+  let tilesFailed = $state(false);
+  // The area the SVG really shows, in viewBox units.
+  let mapView = $derived.by(() => {
+    if (svgW === 0 || svgH === 0) return { x: vb.x, y: vb.y, w: vb.w, h: vb.h };
+    const scale = Math.min(svgW / vb.w, svgH / vb.h);
+    const w = svgW / scale;
+    const h = svgH / scale;
+    return { x: vb.x + (vb.w - w) / 2, y: vb.y + (vb.h - h) / 2, w, h };
+  });
+  let tiles = $derived.by(() => {
+    if (!mapTiles || tilesFailed || !frame || svgW === 0 || svgH === 0) return [];
+    return tilesFor(frame, mapView, Math.min(svgW / vb.w, svgH / vb.h), themeStore.theme);
+  });
 
   let lapPins = $derived.by(() => {
     if (!points) return [];
@@ -143,13 +166,33 @@
   {#if !points}
     <div class="empty-state" style="flex: 1; min-height: 290px; display: flex; align-items: center; justify-content: center;">No GPS data for this activity.</div>
   {:else}
-    <div class="plan-well">
+    <div class="plan-well" class:with-map={tiles.length > 0}>
       <svg viewBox={viewBoxAttr(vb)} preserveAspectRatio="xMidYMid meet" class="plan-svg" bind:clientWidth={svgW} bind:clientHeight={svgH} role="img" aria-labelledby="plan-svg-title plan-svg-desc">
         <title id="plan-svg-title">Top-down route, coloured by heart-rate zone</title>
         <desc id="plan-svg-desc">{routeDescription}</desc>
-        <path d={casingPath} fill="none" stroke="var(--bg-app)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+        {#if tiles.length > 0}
+          <!-- The map is a backdrop: tinted toward the app's own background
+               and faded out at the edges into the panel. -->
+          <defs>
+            <radialGradient id="plan-map-fade" cx="50%" cy="50%" r="72%">
+              <stop offset="55%" stop-color="#fff" />
+              <stop offset="100%" stop-color="#000" />
+            </radialGradient>
+            <mask id="plan-map-mask" maskContentUnits="objectBoundingBox">
+              <rect width="1" height="1" fill="url(#plan-map-fade)" />
+            </mask>
+          </defs>
+          <g class="plan-map" mask="url(#plan-map-mask)">
+            {#each tiles as tile (tile.key)}
+              <!-- Half a pixel of overlap hides the seams between tiles. -->
+              <image href={tile.href} x={tile.x} y={tile.y} width={tile.size + px / 2} height={tile.size + px / 2} preserveAspectRatio="none" onerror={() => (tilesFailed = true)} />
+            {/each}
+            <rect class="plan-map-tint" x={mapView.x} y={mapView.y} width={mapView.w} height={mapView.h} />
+          </g>
+        {/if}
+        <path d={casingPath} fill="none" stroke="var(--bg-app)" stroke-width={tiles.length > 0 ? 7 : 6} stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
         {#each segments as seg, i (i)}
-          <path d={seg.d} fill="none" stroke={seg.color} stroke-width="3" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
+          <path d={seg.d} fill="none" stroke={seg.color} stroke-width={tiles.length > 0 ? 3.5 : 3} stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" />
         {/each}
         {#each lapPins as pin (pin.lapIndex)}
           {@const active = hoveredLapIndex === pin.lapIndex}
@@ -196,6 +239,11 @@
         {/if}
       </svg>
       <div class="plan-annotation top-right mono">plan · {fixes.length} fixes</div>
+      {#if tiles.length > 0}
+        <div class="plan-attribution">
+          © {#each MAP_ATTRIBUTION as a, i (a.label)}{#if i > 0}{' · '}{/if}<a href={a.href} target="_blank" rel="noopener">{a.label}</a>{/each}
+        </div>
+      {/if}
     </div>
     <div class="zone-key">
       {#each ZONE_COLORS as color, i (i)}
@@ -221,6 +269,43 @@
     border-radius: var(--radius-sm);
     padding: var(--space-5);
     display: flex;
+  }
+  /* With a map the tiles fill the well edge to edge. */
+  .plan-well.with-map {
+    padding: 0;
+    overflow: hidden;
+  }
+  .plan-attribution {
+    position: absolute;
+    right: var(--space-4);
+    bottom: var(--space-4);
+    font-size: var(--fs-xs);
+    color: var(--ink-4);
+  }
+  .with-map .plan-annotation,
+  .plan-attribution {
+    padding: var(--space-1) var(--space-4);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+  /* Pull CARTO's neutral greys toward the app's palette: blue-black in
+     dark, warm paper in light. */
+  .plan-map-tint {
+    fill: var(--bg-app);
+    opacity: 0.24;
+    pointer-events: none;
+  }
+  :global(:root[data-theme='light']) .plan-map-tint {
+    opacity: 0.22;
+  }
+  .plan-map :global(image) {
+    filter: saturate(0.85);
+  }
+  .plan-attribution a {
+    color: inherit;
   }
   .plan-svg {
     width: 100%;

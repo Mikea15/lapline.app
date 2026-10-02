@@ -51,7 +51,7 @@
 
 <KpiCard
   label="VO₂ max est."
-  tip="Estimated aerobic fitness (ml of oxygen per kg per minute) from your fastest hard run (3.5-90 min) in the last 90 days. Rated against Cooper Institute norms for your age and sex (Settings > Training)."
+  tip="Estimated aerobic fitness (ml of oxygen per kg per minute) from your fastest hard run (3.5-90 min) in the last 90 days. Rated against Cooper Institute norms for your age and sex."
   edge="var(--accent)"
   badge={band ? { text: BAND[band].name, color: BAND[band].color } : null}
   chip={loading ? null : chip}

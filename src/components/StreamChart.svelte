@@ -6,6 +6,7 @@
      Atlas "Synchronised Streams" panel had, rebuilt fresh in Tape's own
      visual language rather than reused as-is. -->
 <script lang="ts">
+  import { touchHover } from '../lib/touch-hover';
   interface Props {
     t: number[];
     values: (number | null)[]; // null = no real reading at that second, skipped
@@ -101,7 +102,7 @@
   <div class="stream-chart" bind:this={wrapEl}>
     <div class="stream-chart-max mono">{formatValue(range.max)}</div>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <svg viewBox="0 0 {VB_W} {VB_H}" preserveAspectRatio="none" class="stream-svg" role="img" aria-label="Real values over the course of the activity, ranging {formatValue(range.min)} to {formatValue(range.max)}" onmousemove={handleMove} onmouseleave={handleLeave}>
+    <svg use:touchHover viewBox="0 0 {VB_W} {VB_H}" preserveAspectRatio="none" class="stream-svg" role="img" aria-label="Real values over the course of the activity, ranging {formatValue(range.min)} to {formatValue(range.max)}" onmousemove={handleMove} onmouseleave={handleLeave}>
       {#if zeroLine}
         <line x1="0" y1={py(0)} x2={VB_W} y2={py(0)} stroke="var(--line-row)" stroke-width="1" vector-effect="non-scaling-stroke" />
       {/if}

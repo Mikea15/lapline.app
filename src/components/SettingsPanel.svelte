@@ -15,6 +15,7 @@
   import Icon from './Icon.svelte';
   import { themeStore } from '../lib/theme-store.svelte';
   import type { ThemePref } from '../lib/theme';
+  import { mapTilesAvailable } from '../lib/map-tiles';
 
   interface Props {
     onClose?: () => void;
@@ -107,6 +108,12 @@
     await settingsStore.save({ analytics_enabled: String(next) });
   }
 
+  let mapTilesEnabled = $state(false);
+  async function setMapTilesPref(next: boolean) {
+    mapTilesEnabled = next;
+    await settingsStore.save({ map_tiles_enabled: String(next) });
+  }
+
   let locationLookupEnabled = $state(false);
   async function setLocationLookupPref(next: boolean) {
     locationLookupEnabled = next;
@@ -165,6 +172,7 @@
     textSize = settingsStore.getTextSize();
     analyticsEnabled = settingsStore.getAnalyticsEnabled();
     locationLookupEnabled = settingsStore.getLocationLookupEnabled();
+    mapTilesEnabled = settingsStore.getMapTilesEnabled();
     weatherLookupEnabled = settingsStore.getWeatherLookupEnabled();
   });
 
@@ -177,7 +185,7 @@
     { id: 'training', label: 'Training' }
   ];
 
-  type RowId = 'units' | 'theme' | 'defaultRange' | 'textSize' | 'analytics' | 'locationLookup' | 'weatherLookup' | 'birthYear' | 'sex';
+  type RowId = 'units' | 'theme' | 'defaultRange' | 'textSize' | 'analytics' | 'locationLookup' | 'mapTiles' | 'weatherLookup' | 'birthYear' | 'sex';
   interface Row {
     id: RowId;
     section: SectionId;
@@ -188,7 +196,7 @@
     isDefault: boolean;
   }
 
-  let rows = $derived.by((): Row[] => [
+  let allRows = $derived.by((): Row[] => [
     {
       id: 'units',
       section: 'display',
@@ -244,6 +252,15 @@
       isDefault: !locationLookupEnabled
     },
     {
+      id: 'mapTiles',
+      section: 'privacy',
+      name: 'Map backgrounds',
+      desc: "Shows streets under an activity's route. Loads map images of that area from CARTO (map data from OpenStreetMap).",
+      valueLabel: mapTilesEnabled ? 'On' : 'Off',
+      defaultLabel: 'Off',
+      isDefault: !mapTilesEnabled
+    },
+    {
       id: 'weatherLookup',
       section: 'privacy',
       name: 'Weather lookup',
@@ -271,6 +288,8 @@
       isDefault: sex === null
     }
   ]);
+  // Map backgrounds only exist when the build has a tile key.
+  let rows = $derived(allRows.filter((r) => r.id !== 'mapTiles' || mapTilesAvailable));
 
   let query = $state('');
   let category = $state<'all' | SectionId>('all');
@@ -312,6 +331,9 @@
         break;
       case 'locationLookup':
         await setLocationLookupPref(false);
+        break;
+      case 'mapTiles':
+        await setMapTilesPref(false);
         break;
       case 'weatherLookup':
         await setWeatherLookupPref(false);
@@ -477,6 +499,11 @@
                   <div class="segmented">
                     <button class:active={!locationLookupEnabled} onclick={() => setLocationLookupPref(false)}>Off</button>
                     <button class:active={locationLookupEnabled} onclick={() => setLocationLookupPref(true)}>On</button>
+                  </div>
+                {:else if row.id === 'mapTiles'}
+                  <div class="segmented">
+                    <button class:active={!mapTilesEnabled} onclick={() => setMapTilesPref(false)}>Off</button>
+                    <button class:active={mapTilesEnabled} onclick={() => setMapTilesPref(true)}>On</button>
                   </div>
                 {:else if row.id === 'weatherLookup'}
                   <div class="segmented">

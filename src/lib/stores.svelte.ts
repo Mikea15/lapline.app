@@ -254,6 +254,12 @@ export const settingsStore = {
     return _settings.location_lookup_enabled === 'true';
   },
 
+  // Same opt-in contract: map tiles under the Plan route (lib/map-tiles.ts)
+  // tell the tile host which area an activity was in.
+  getMapTilesEnabled(): boolean {
+    return _settings.map_tiles_enabled === 'true';
+  },
+
   // Same opt-in contract as location lookup above, for its own toggle -
   // sending an activity's date/time/coordinate to a weather provider is
   // separate consent from sending it to a geocoder, even though both are

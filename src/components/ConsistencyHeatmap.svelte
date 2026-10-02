@@ -10,6 +10,7 @@
      minutes) rather than relying on the browser's native title attribute,
      which showed no date at all and is slow, unstyled, and easy to miss. -->
 <script lang="ts">
+  import { touchHover } from '../lib/touch-hover';
   import type { Activity } from '../lib/types';
   import { formatDateLong, dateToStr, addDays } from '../lib/date-utils';
   import { phone } from '../lib/viewport.svelte';
@@ -227,7 +228,7 @@
   </div>
 
   <div class="c-body">
-    <div class="heatmap-grid" bind:this={gridEl}>
+    <div class="heatmap-grid" bind:this={gridEl} use:touchHover>
       <div class="heatmap-day-labels">
         {#each DAY_LABELS as label, i (i)}
           <span class="day-label mono">{label}</span>

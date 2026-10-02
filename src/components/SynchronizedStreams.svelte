@@ -148,20 +148,29 @@
     return best;
   }
 
-  function handleMove(e: MouseEvent) {
+  // Same pointer handling as EffortTape: mouse hovers, a finger drags
+  // sideways to scrub and the position stays when it lifts.
+  function handleDown(e: PointerEvent) {
+    if (e.pointerType === 'mouse') return;
+    handleMove(e);
+  }
+
+  function handleMove(e: PointerEvent) {
     if (!stackEl || t.length === 0) return;
+    if (e.pointerType !== 'mouse' && e.buttons === 0 && e.type === 'pointermove') return;
     const rect = stackEl.getBoundingClientRect();
     const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     syncSeconds = nearestSample(tMin + frac * tSpan);
   }
 
-  function handleLeave() {
+  function handleLeave(e: PointerEvent) {
+    if (e.pointerType !== 'mouse') return;
     syncSeconds = null;
   }
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="streams-stack" bind:this={stackEl} onmousemove={handleMove} onmouseleave={handleLeave}>
+<div class="streams-stack" bind:this={stackEl} onpointerdown={handleDown} onpointermove={handleMove} onpointerleave={handleLeave}>
   {#each built as b (b.track.key)}
     <div class="stream-track">
       <div class="stream-track-head">
@@ -219,6 +228,9 @@
   .streams-stack {
     position: relative;
     cursor: crosshair;
+    touch-action: pan-y;
+    -webkit-user-select: none;
+    user-select: none;
   }
   .stream-track {
     margin-bottom: var(--space-4);

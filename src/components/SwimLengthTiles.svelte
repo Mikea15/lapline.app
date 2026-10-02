@@ -8,6 +8,7 @@
      as a run of near-identical tiles, and not styled as a swum length since
      nothing was actually swum. -->
 <script lang="ts">
+  import { touchHover } from '../lib/touch-hover';
   import Sparkline from './Sparkline.svelte';
   import {
     buildLengthDisplayRows,
@@ -71,7 +72,7 @@
   }
 </script>
 
-<div class="km-tiles">
+<div class="km-tiles" use:touchHover>
   {#each rows as row (row.key)}
     {#if row.kind === 'rest'}
       {@const restActive = scrubLengthIndex !== null && scrubLengthIndex >= row.firstIndex && scrubLengthIndex <= row.lastIndex}
