@@ -3,7 +3,7 @@
   import Sparkline from './Sparkline.svelte';
   import Skeleton from './Skeleton.svelte';
   import { familyColorVar } from '../lib/sport-color';
-  import { formatSpeed, type UnitSystem } from '../lib/units';
+  import { formatSpeed, toDisplayDistance, toDisplaySpeed, distanceUnit, speedUnit, type UnitSystem } from '../lib/units';
   import { formatDateDMY, daysAgo } from '../lib/date-utils';
   import type { RecordResult } from '../lib/records';
   import { phone } from '../lib/viewport.svelte';
@@ -25,7 +25,7 @@
     }
     if (r.kind === 'fastest-avg-speed') return formatSpeed(r.bestValue, unitSystem, 1);
     if (r.sport === 'pool-swim') return `${Math.round(r.bestValue * 1000)}`;
-    return r.bestValue.toFixed(2);
+    return toDisplayDistance(r.bestValue, unitSystem).toFixed(2);
   }
 
   function formatGain(r: RecordResult): string {
@@ -35,12 +35,12 @@
       return `${diff < 0 ? '−' : '+'}${Math.abs(Math.round(diff))} s`;
     }
     if (r.kind === 'fastest-avg-speed') {
-      return `${diff >= 0 ? '+' : '−'}${Math.abs(diff).toFixed(1)} kph`;
+      return `${diff >= 0 ? '+' : '−'}${Math.abs(toDisplaySpeed(diff, unitSystem)).toFixed(1)} ${speedUnit(unitSystem)}`;
     }
     if (r.sport === 'pool-swim') {
       return `${diff >= 0 ? '+' : '−'}${Math.abs(Math.round(diff * 1000))} m`;
     }
-    return `${diff >= 0 ? '+' : '−'}${Math.abs(diff).toFixed(2)} km`;
+    return `${diff >= 0 ? '+' : '−'}${Math.abs(toDisplayDistance(diff, unitSystem)).toFixed(2)} ${distanceUnit(unitSystem)}`;
   }
 
   function sparklineData(r: RecordResult): number[] {

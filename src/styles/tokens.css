@@ -1,9 +1,9 @@
 /* styles/tokens.css
    The single source of truth for the design system: colors, type scale,
    weights, tracking, spacing and radii. global.css and every component only
-   reference these custom properties - never raw values - so an alternate
-   theme or color scheme is one more block here overriding them, e.g.
-   :root[data-theme='light'] { --bg-app: ...; --ink-1: ...; }. */
+   reference these custom properties - never raw values - so the light
+   theme below is one more block overriding them. lib/theme.ts sets
+   <html data-theme> (dark is the default). */
 
 :root {
   color-scheme: dark;
@@ -40,6 +40,14 @@
   /* Signal */
   --accent: #3fd0c9;
   --accent-hover: #7ce4de;
+  /* Text on an accent (or zone-coloured) fill. */
+  --on-accent: #0a0c0f;
+  /* Dimmed backdrop behind dialogs. */
+  --overlay: rgba(0, 0, 0, 0.6);
+  /* Floating chart tooltips. */
+  --tooltip-bg: rgba(12, 15, 19, 0.9);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-sticky: rgba(0, 0, 0, 0.9);
 
   /* Neutral series (weekly load bars, comparison lines) */
   --neutral-bar: #3a4553;
@@ -148,6 +156,71 @@
   --serious: var(--alert);
   --critical: var(--alert);
   --font: var(--font-mono);
+}
+
+/* ===== Light theme =====
+   Warm paper background, white panels, the same hues as dark but deepened
+   so they hold contrast on light surfaces (design_handoff_landing/tokens.css
+   light palette). Text on the accent is a dark teal, not white: white on
+   #16a39c fails contrast. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-app: #f6f4f0;
+  --bg-nav: #efece6;
+  --bg-panel: #ffffff;
+  --bg-well: #f3f0ea;
+  --bg-row-active: #ebe7e0;
+  --bg-row-hover: #f0ede7;
+
+  --line-panel: #dcd7ce;
+  --line-soft: #e4e0d8;
+  --line-row: #ebe7e0;
+  --line-chip: #cfc9be;
+
+  --ink-1: #16191d;
+  --ink-2: #2b3138;
+  --ink-3: #3c4550;
+  --ink-4: #4d5763;
+  --ink-5: #646d78;
+  --ink-6: #7a838d;
+  --ink-7: #9aa1a9;
+
+  --accent: #16a39c;
+  --accent-hover: #0f8a84;
+  --on-accent: #06201e;
+  --overlay: rgba(22, 25, 29, 0.35);
+  --tooltip-bg: rgba(255, 255, 255, 0.95);
+  --shadow-pop: 0 8px 24px rgba(22, 25, 29, 0.14);
+  --shadow-sticky: rgba(22, 25, 29, 0.16);
+
+  --neutral-bar: #c9ced4;
+  --neutral-bar-last: #9aa3ad;
+  --neutral-bar-alt: #d3d7dc;
+  --neutral-line: #a3acb6;
+
+  --zone-1: #3f72c9;
+  --zone-2: #1aa8b0;
+  --zone-3: #4f9a2f;
+  --zone-4: #c98a1c;
+  --zone-5: #d24a2a;
+
+  --sport-running: #16a39c;
+  --sport-cycling: #4f9a2f;
+  --sport-pool-swim: #3f72c9;
+  --sport-cardio: #c98a1c;
+  --sport-climbing: #8a63c9;
+  --sport-other: #6b7682;
+
+  --positive: #4f9a2f;
+  --caution: #c98a1c;
+  --alert: #d24a2a;
+
+  --heat-0: #ebe7e0;
+  --heat-1: #c6e4e1;
+  --heat-2: #8ccbc6;
+  --heat-3: #48b2ab;
+  --heat-4: #16a39c;
 }
 
 /* ===== Phone type ramp =====

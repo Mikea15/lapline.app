@@ -43,12 +43,12 @@
       ? null
       : { text: `${ramp.changePct >= 0 ? '+' : ''}${ramp.changePct.toFixed(1)}%`, tone: ramp.status === 'steep' ? ('caution' as const) : ramp.changePct >= 0 ? ('positive' as const) : ('neutral' as const) }
   );
-  let caption = $derived(ramp.changePct === null ? 'not enough history for a trend yet' : `in ${RAMP_WEEKS}w · safe is ≤ ${SAFE_RAMP_PER_WEEK * 100}%/wk`);
+  let caption = $derived(ramp.changePct === null ? 'not enough history for a trend yet' : `in ${RAMP_WEEKS}w · aim ≤ ${SAFE_RAMP_PER_WEEK * 100}%/wk`);
 </script>
 
 <KpiCard
   label="Chronic load"
-  tip="6-week trailing average of your weekly training load: your longer-term fitness baseline. The band is where it could safely be by now, building at most 8% a week from 4 weeks ago (the dotted line)."
+  tip="Your weekly training load (hours of running, cycling and swimming, weighted by sport) averaged over 6 weeks: your longer-term fitness baseline. The band shows how high it would be after building 8% a week (a common rule of thumb) from 4 weeks ago (the dotted line)."
   edge={status.color}
   badge={series.length > 0 && current > 0 ? status : null}
   {chip}

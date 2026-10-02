@@ -3,7 +3,7 @@ import type { Activity } from '../types';
 import {
   weeklyLoadBuckets,
   trailingMean,
-  loadStatus,
+  loadBand,
   acuteChronicRatio,
   runVolumeKm,
   activityLoad
@@ -97,12 +97,12 @@ describe('activityLoad', () => {
   });
 });
 
-describe('loadStatus', () => {
+describe('loadBand', () => {
   it('classifies the ratio into the documented bands', () => {
-    expect(loadStatus(0.5)).toBe('Detraining');
-    expect(loadStatus(1.0)).toBe('Productive');
-    expect(loadStatus(1.4)).toBe('High risk');
-    expect(loadStatus(2.0)).toBe('Overreaching');
+    expect(loadBand(0.5)).toBe('detrain');
+    expect(loadBand(1.0)).toBe('productive');
+    expect(loadBand(1.4)).toBe('caution');
+    expect(loadBand(2.0)).toBe('risk');
   });
 });
 
@@ -111,7 +111,7 @@ describe('acuteChronicRatio', () => {
     const result = acuteChronicRatio([]);
     expect(result.chronic42d).toBe(0);
     expect(result.ratio).toBe(0);
-    expect(result.status).toBe('Detraining');
+    expect(result.band).toBe('detrain');
   });
 
   it('computes acute (7d) against chronic (42d, /6 weeks) real load', () => {

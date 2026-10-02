@@ -209,7 +209,7 @@
       </div>
       <div class="c-stat">
         <div class="c-stat-value"><span class="num">{adherencePercent}</span><span class="unit">%</span></div>
-        <InfoLabel class="c-stat-label" text="Adherence" tip="The share of the last 14 days, today included, with at least one activity." />
+        <InfoLabel class="c-stat-label" text="Last 14 days" tip="The share of the last 14 days, today included, with at least one activity." />
       </div>
       <div class="c-stat">
         <div class="c-stat-value"><span class="num" style="color: var(--accent);">{bestStreak}</span><span class="unit">{bestStreak === 1 ? 'day' : 'days'}</span></div>

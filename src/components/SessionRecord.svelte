@@ -111,7 +111,7 @@
   <div class="sr-body mt-4">
     {#if detail.aerobicTrainingEffect > 0 || detail.anaerobicTrainingEffect > 0}
       <section class="sr-section">
-        <h3 class="sr-heading">Training Effect (est.)</h3>
+        <h3 class="sr-heading"><InfoLabel text="Training effect (est.)" tip="Your watch's estimate of how much this session improved your fitness, from 0 to 5. Aerobic is endurance; anaerobic is short, hard efforts." /></h3>
         <div class="sr-gauges">
           <RadialGauge value={detail.aerobicTrainingEffect} valueLabel={detail.aerobicTrainingEffect.toFixed(1)} label="Aerobic" sublabel={trainingEffectLabel(detail.aerobicTrainingEffect)} color="var(--accent)" />
           <RadialGauge value={detail.anaerobicTrainingEffect} valueLabel={detail.anaerobicTrainingEffect.toFixed(1)} label="Anaerobic" sublabel={trainingEffectLabel(detail.anaerobicTrainingEffect)} color="var(--alert)" />
@@ -122,10 +122,10 @@
     <section class="sr-section">
       <h3 class="sr-heading">Timing</h3>
       <div class="meta-grid">
-        <div class="meta-item"><span class="meta-label">Time</span><span class="meta-value mono">{formatClock(detail.durationMin * 60)}</span></div>
+        <div class="meta-item"><span class="meta-label">Time trained</span><span class="meta-value mono">{formatClock(detail.durationMin * 60)}</span></div>
         {#if movingTimeSec > 0}
           <div class="meta-item">
-            <InfoLabel class="meta-label" text="Moving time" tip="Real per-second seconds where the speed stream read above a near-stationary threshold." />
+            <InfoLabel class="meta-label" text="Moving time" tip="Time you were actually moving. Stops at lights or water breaks don't count." />
             <span class="meta-value mono">{formatClock(movingTimeSec)}</span>
           </div>
         {/if}
@@ -135,7 +135,7 @@
 
     {#if detail.avgHR > 0}
       <section class="sr-section">
-        <h3 class="sr-heading">Heart Rate</h3>
+        <h3 class="sr-heading">Heart rate</h3>
         <div class="meta-grid">
           <div class="meta-item"><span class="meta-label">Average</span><span class="meta-value mono">{detail.avgHR} bpm</span></div>
           {#if detail.maxHR > 0}<div class="meta-item"><span class="meta-label">Max</span><span class="meta-value mono">{detail.maxHR} bpm</span></div>{/if}
@@ -182,7 +182,7 @@
 
     {#if isRunning && (detail.avgCadence > 0 || detail.avgStrideLengthM > 0)}
       <section class="sr-section">
-        <h3 class="sr-heading">Running Dynamics</h3>
+        <h3 class="sr-heading">Running dynamics</h3>
         <div class="meta-grid">
           {#if detail.avgCadence > 0}<div class="meta-item"><span class="meta-label">Avg cadence</span><span class="meta-value mono">{detail.avgCadence} {cadenceUnit()}</span></div>{/if}
           {#if detail.maxCadence > 0}<div class="meta-item"><span class="meta-label">Max cadence</span><span class="meta-value mono">{detail.maxCadence} {cadenceUnit()}</span></div>{/if}
@@ -202,7 +202,7 @@
     {#if totalIntensityMinutes > 0}
       <section class="sr-section">
         <h3 class="sr-heading">
-          <InfoLabel text="Intensity Minutes" tip="This app's own definition from real HR-zone time (Moderate = Z3, Vigorous = Z4+Z5) - not Garmin's official, differently-weighted, weekly cross-activity Intensity Minutes metric." />
+          <InfoLabel text="Intensity minutes" tip="Minutes in zone 3 (moderate) and zones 4-5 (vigorous) in this session, counted by Lapline from your heart-rate zones." />
         </h3>
         <div class="meta-grid">
           <div class="meta-item"><span class="meta-label">Moderate</span><span class="meta-value mono">{moderateMinutes}</span></div>
@@ -233,7 +233,7 @@
         <div class="meta-grid">
           {#if detail.recoveryHrBpm > 0}<div class="meta-item"><span class="meta-label">Recovery HR</span><span class="meta-value mono">{detail.recoveryHrBpm} bpm</span></div>{/if}
           {#if detail.recoveryTimeHours > 0}<div class="meta-item"><span class="meta-label">Recovery time (est.)</span><span class="meta-value mono">{detail.recoveryTimeHours} h</span></div>{/if}
-          {#if detail.garminVo2Max > 0}<div class="meta-item"><span class="meta-label">VO2 max (est.)</span><span class="meta-value mono">{detail.garminVo2Max}</span></div>{/if}
+          {#if detail.garminVo2Max > 0}<div class="meta-item"><span class="meta-label">VO₂ max (watch est.)</span><span class="meta-value mono">{detail.garminVo2Max}</span></div>{/if}
         </div>
       </section>
     {/if}
@@ -247,7 +247,7 @@
   .sr-body {
     display: flex;
     flex-direction: column;
-    background: rgba(12, 15, 19, 0.9);
+    background: var(--tooltip-bg);
     border: 1px solid var(--line-panel);
     border-radius: var(--radius);
     padding: var(--space-2) var(--space-7);

@@ -23,21 +23,21 @@
     <button type="button" class="btn btn-secondary btn-sm mono" onclick={onOpenReleaseNotes} title="View release notes">v{CURRENT_VERSION}</button>
   </div>
   <p style="margin: var(--space-3) 0 0; color: var(--ink-secondary); font-size: var(--fs-md);">
-    Lapline turns the <strong>.fit</strong> files your watch or bike computer already
-    record into a real training picture - trends, personal records, heart-rate zones,
+    Lapline turns the workouts your watch, bike computer or app records into a real
+    training picture - trends, personal records, heart-rate zones,
     and per-sport detail - without an account, a subscription, or a company on the other
     end of an upload.
   </p>
   <div class="mt-4">
-    <button type="button" class="btn btn-secondary btn-sm" onclick={onReplayTutorial}>Replay the welcome tutorial</button>
+    <button type="button" class="btn btn-secondary btn-sm" onclick={onReplayTutorial}>Show the welcome again</button>
   </div>
 </div>
 
 <div class="card mt-4" style="max-width: 640px;">
   <span class="section-title">Your data stays yours</span>
   <p style="margin: var(--space-3) 0 0; color: var(--ink-secondary); font-size: var(--fs-md);">
-    Every activity you import is parsed and stored entirely in this browser's own local
-    database (IndexedDB) on this device. There's no Lapline server to send it to: your
+    Every activity you import is read and saved in this browser, on this device. There's
+    no Lapline server to send it to: your
     activity files never leave your device, and once loaded the app works the same with
     your network disconnected.
   </p>
@@ -52,11 +52,10 @@
 <div class="card mt-4" style="max-width: 640px;">
   <span class="section-title">You're in control</span>
   <p style="margin: var(--space-3) 0 0; color: var(--ink-secondary); font-size: var(--fs-md);">
-    The raw bytes of every file you import are kept alongside the parsed data, so a
-    future fix to how this app reads that data can be re-applied to your whole history
-    without re-uploading anything. And when you want it gone, it's gone: <strong>Settings
-    → Danger zone → Reset all data</strong> permanently deletes every entry, activity,
-    goal, setting, and stored file from this browser - there's no copy anywhere else to
+    Lapline keeps a copy of every file you import, so when we improve how files are read,
+    the fix can be applied to your whole history without importing anything again. And when you want it gone, it's gone: <strong>Settings
+    → Danger zone → Reset all data</strong> permanently deletes every activity, imported
+    file and setting in this browser - there's no copy anywhere else to
     ask us to delete, because we never had one.
   </p>
 </div>

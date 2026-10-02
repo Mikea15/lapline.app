@@ -41,7 +41,7 @@
       : { text: `${deltaPct > 0 ? '+' : ''}${deltaPct.toFixed(1)}%`, tone: deltaPct > 0 ? ('positive' as const) : ('caution' as const) }
   );
   let caption = $derived.by(() => {
-    if (value === null) return 'needs a hard run effort';
+    if (value === null) return 'needs a hard run in the last 90 days';
     if (!bounds || !band) return deltaPct === null ? 'add birth year + sex in Settings' : 'in 4w · no rating yet';
     const i = VO2_BANDS.indexOf(band);
     const next = i < 4 ? `${(bounds[i]! - value).toFixed(1)} to ${BAND[VO2_BANDS[i + 1]!].name.toLowerCase()}` : 'top band for your age';
@@ -51,7 +51,7 @@
 
 <KpiCard
   label="VO₂ max est."
-  tip="Estimated aerobic fitness (ml of oxygen per kg of body weight per minute), from your best recent run effort. Rated against Cooper Institute norms for your age and sex, set in Settings > Training."
+  tip="Estimated aerobic fitness (ml of oxygen per kg per minute) from your fastest hard run (3.5-90 min) in the last 90 days. Rated against Cooper Institute norms for your age and sex (Settings > Training)."
   edge="var(--accent)"
   badge={band ? { text: BAND[band].name, color: BAND[band].color } : null}
   chip={loading ? null : chip}

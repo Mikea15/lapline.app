@@ -9,7 +9,7 @@ import { createBackupZip, readBackupZip, backupFilename } from './backup';
 import { CURRENT_VERSION } from './release-notes';
 import { createFitParsePool } from './fit-parse-pool';
 import { trackEvent } from './analytics';
-import { fitManufacturer, fitFailureReason, gpxFailureReason } from './import-failure';
+import { fitManufacturer, fitFailureReason, gpxFailureReason, failureMessage, GENERIC_IMPORT_ERROR } from './import-failure';
 import type { Entry, Activity, RecordPoint, Goal, Setting, ParsedActivity, ActivityDetail, StoredFitFile } from './types';
 import type { UnitSystem } from './units';
 import { isRangePreset, type RangePreset } from './range-preset';
@@ -120,19 +120,6 @@ export const activitiesStore = {
       .equals(id)
       .sortBy('index');
 
-    // Resolve maxHr from settings or computed
-    const setting = await db.settings.get('max_hr');
-    let maxHr = 0;
-    if (setting?.value) {
-      const v = parseInt(setting.value, 10);
-      if (!isNaN(v) && v > 0) maxHr = v;
-    }
-    if (maxHr === 0) {
-      for (const r of records) {
-        if (r.hr > maxHr) maxHr = r.hr;
-      }
-    }
-
     return {
       ...activity,
       t: records.map(r => r.t),
@@ -146,7 +133,6 @@ export const activitiesStore = {
       perfCondition: records.map(r => r.perfCondition),
       lat: records.map(r => r.lat),
       lon: records.map(r => r.lon),
-      maxHr,
       laps,
       lengths
     };
@@ -202,11 +188,6 @@ export const settingsStore = {
       }
     });
     await this.load();
-  },
-
-  getMaxHr(): number {
-    const v = parseInt(_settings.max_hr || '', 10);
-    return (!isNaN(v) && v > 0) ? v : 0;
   },
 
   // Settings > Training > Birth year and Sex: only used to pick the age/sex
@@ -413,11 +394,11 @@ export const importStore = {
             });
           } catch (e) {
             const message = e instanceof Error ? e.message : String(e);
-            errors.push(`${file.name}: ${message}`);
-            entry.status = 'error';
-            entry.message = message;
-            // Maker and error type only - never the file's name or contents.
             const reason = saving ? 'save_error' : isGpx ? gpxFailureReason(bytes, message) : fitFailureReason(bytes, message);
+            errors.push(`${file.name}: ${failureMessage(reason)}`);
+            entry.status = 'error';
+            entry.message = failureMessage(reason);
+            // Maker and error type only - never the file's name or contents.
             trackEvent('import_file_failed', { format: isGpx ? 'gpx' : 'fit', manufacturer: isGpx ? 'gpx' : fitManufacturer(bytes), reason });
           }
         })
@@ -440,7 +421,8 @@ export const importStore = {
         fitFilesStore.load()
       ]);
     } catch (e) {
-      _importState = { ..._importState, status: 'error', error: String(e) };
+      console.error(e);
+      _importState = { ..._importState, status: 'error', error: GENERIC_IMPORT_ERROR };
       trackEvent('import_failed');
     }
   },
@@ -634,15 +616,26 @@ export const fitFilesStore = {
           // listing above, so re-parsing a large history doesn't need every
           // file's raw bytes in memory at once.
           const blob = await db.fitFileBlobs.get(f.id);
-          if (!blob) throw new Error('stored file data missing');
-          const activities = isGpxFile(f.filename)
-            ? parseGPX(new TextDecoder('utf-8').decode(blob.data))
-            : await parseFIT(blob.data);
-          activitiesUpdated += await saveActivities(activities, f.id);
-        } catch (e) {
-          errors.push(`${f.filename}: ${e instanceof Error ? e.message : String(e)}`);
+          if (!blob) {
+            errors.push(`${f.filename}: The stored copy of this file is missing. Import it again.`);
+            continue;
+          }
+          const isGpx = isGpxFile(f.filename);
+          let saving = false;
+          try {
+            const activities = isGpx ? parseGPX(new TextDecoder('utf-8').decode(blob.data)) : await parseFIT(blob.data);
+            saving = true;
+            activitiesUpdated += await saveActivities(activities, f.id);
+          } catch (e) {
+            const message = e instanceof Error ? e.message : String(e);
+            const reason = saving ? 'save_error' : isGpx ? gpxFailureReason(blob.data, message) : fitFailureReason(blob.data, message);
+            errors.push(`${f.filename}: ${failureMessage(reason)}`);
+          }
+        } catch {
+          errors.push(`${f.filename}: ${GENERIC_IMPORT_ERROR}`);
+        } finally {
+          _reparseProgress = { done: i + 1, total: files.length };
         }
-        _reparseProgress = { done: i + 1, total: files.length };
       }
       await activitiesStore.load();
       _reparseResult = { filesReparsed: files.length, activitiesUpdated, errors };
@@ -714,6 +707,11 @@ export const backupStore = {
         await importStore.importFiles(files.map((f) => new File([f.data as BlobPart], f.filename)));
       }
       const result = importStore.state.result;
+      // A plain zip of workout files (no manifest) is just an import.
+      if (!manifest) {
+        trackEvent('workout_zip_imported', { files: files.length });
+        return { filesInBackup: files.length, activitiesImported: result?.imported ?? 0, errors: result?.errors ?? [], missing, settingsRestored: 0 };
+      }
       const settingsRestored = Object.keys(manifest.settings).length;
       if (settingsRestored > 0) await settingsStore.save(manifest.settings);
       trackEvent('backup_restored', { files: files.length });
@@ -820,7 +818,7 @@ export const deviceSyncStore = {
       const perm = await _deviceSyncHandle.queryPermission({ mode: 'read' });
       const granted = perm === 'granted' || (await _deviceSyncHandle.requestPermission({ mode: 'read' })) === 'granted';
       if (!granted) {
-        _deviceSyncError = 'Read access to the device folder was denied.';
+        _deviceSyncError = 'Lapline needs permission to read that folder. Choose Sync now and allow access when asked.';
         return;
       }
       const found = await walkForFitFiles(_deviceSyncHandle);

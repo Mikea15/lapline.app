@@ -4,7 +4,7 @@
      three things a new user actually needs to do, then either sends them
      straight into Import, loads the bundled sample sessions to look around
      with (lib/sample-data.ts), or dismisses to a brief highlight on the
-     Import icon so they know where to come back to. -->
+     header's Sync button so they know where to come back to. -->
 <script lang="ts">
   interface Props {
     onImportNow: () => void;
@@ -19,10 +19,10 @@
   <div class="welcome-kicker">Welcome</div>
   <h2 class="welcome-title">Let's get your training in here</h2>
   <p class="welcome-lede">
-    Lapline turns the .fit or .gpx files your watch, bike computer, or app already
-    record into trends, personal records, heart-rate zones, and per-sport detail. No account, and
-    your data never leaves this browser - see the About page any time for the full
-    story.
+    Lapline turns the workouts your watch, bike computer or phone app records into trends,
+    personal records, heart-rate zones and detail for every session. No account, and your
+    workouts stay on this device. A few optional extras go online only if you turn them on;
+    About has the details.
   </p>
 </div>
 
@@ -32,9 +32,8 @@
     <div>
       <div class="welcome-step-title">Import your first activity</div>
       <div class="welcome-step-body">
-        Choose <strong>Import</strong> (the download arrow) and drop in a .fit file. Don't have
-        one handy? The Import screen also has a short guide on getting one off your
-        device.
+        Choose <strong>Sync</strong> (top right) and connect your watch or drop in a .fit file.
+        Don't have one handy? It also has a short guide on getting one off your device.
       </div>
     </div>
   </div>

@@ -5,9 +5,12 @@
 // - <!-- SITE_HEADER --> / <!-- SITE_FOOTER -->: the shared top bar and footer.
 // - <!-- RELEASE_NOTES -->: every release from lib/release-notes.ts, the
 //   same list the app's Release Notes panel shows.
+// - every page (the app's too) gets lib/theme.ts's inline theme script in
+//   its <head>, so a light-theme page never flashes dark first.
 import type { Plugin } from 'vite';
 import { RELEASE_NOTES } from '../../src/lib/release-notes';
 import { CONTACT_EMAIL, DONATE_URL, X_URL } from '../../src/lib/links';
+import { PREPAINT_THEME_SCRIPT } from '../../src/lib/theme';
 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -25,25 +28,39 @@ export function renderReleaseNotes(): string {
   ).join('\n');
 }
 
+// The theme toggle is filled in by src/landing/theme-toggle.ts; without JS
+// it stays hidden (the page follows the saved or system theme anyway).
 const SITE_HEADER = `<header class="l-top">
-      <a class="l-brand" href="/?home" aria-label="Lapline home">
-        <svg width="22" height="22" viewBox="0 0 64 64" aria-hidden="true">
-          <rect x="8" y="18" width="48" height="28" rx="14" fill="none" stroke="currentColor" stroke-width="6" />
-          <line x1="40" y1="12" x2="40" y2="24" stroke="var(--accent)" stroke-width="6" stroke-linecap="round" />
-        </svg>
-        lapline
-      </a>
-      <a class="l-btn l-btn-quiet" href="/app/">Open app</a>
+      <div class="l-top-inner">
+        <a class="l-brand" href="/?home" aria-label="Lapline home">
+          <svg width="20" height="20" viewBox="0 0 64 64" aria-hidden="true">
+            <rect x="8" y="18" width="48" height="28" rx="14" fill="none" stroke="currentColor" stroke-width="6" />
+            <line x1="40" y1="12" x2="40" y2="24" stroke="var(--accent)" stroke-width="6" stroke-linecap="round" />
+          </svg>
+          lapline
+        </a>
+        <nav class="l-nav" aria-label="Site">
+          <a href="/?home#features">Features</a>
+          <a href="/?home#privacy">Privacy</a>
+          <a href="/?home#files">Your workouts</a>
+          <a href="/?home#faq">FAQ</a>
+        </nav>
+        <button type="button" class="l-theme" hidden aria-label="Switch to light theme"></button>
+        <a class="l-btn l-btn-primary l-btn-quiet" href="/app/" data-track="landing_open_app">Open app</a>
+      </div>
     </header>`;
 
 const SITE_FOOTER = `<footer class="l-foot">
-      <span>© 2026 Lapline · MIT licence</span>
-      <a href="/?home#privacy">Privacy</a>
-      <a href="/changelog/">What's new</a>
-      <a href="/app/">Open app</a>
-      <a href="mailto:${CONTACT_EMAIL}">Contact</a>
-      <a href="${X_URL}" rel="noopener">X</a>${DONATE_URL ? `
-      <a href="${DONATE_URL}" rel="noopener">Buy me a coffee</a>` : ''}
+      <div class="l-foot-inner">
+        <span class="l-foot-legal">© 2026 Lapline · MIT licence</span>
+        <nav class="l-foot-links" aria-label="Footer">
+          <a href="/?home#privacy">Privacy</a>
+          <a href="/changelog/">What's new</a>
+          <a href="mailto:${CONTACT_EMAIL}">Contact</a>
+          <a href="${X_URL}" rel="noopener">X</a>${DONATE_URL ? `
+          <a href="${DONATE_URL}" rel="noopener">Buy me a coffee</a>` : ''}
+        </nav>
+      </div>
     </footer>`;
 
 export function changelogPlugin(): Plugin {
@@ -52,10 +69,13 @@ export function changelogPlugin(): Plugin {
     transformIndexHtml: {
       order: 'pre',
       handler(html) {
-        return html
-          .replace('<!-- SITE_HEADER -->', SITE_HEADER)
-          .replace('<!-- SITE_FOOTER -->', SITE_FOOTER)
-          .replace('<!-- RELEASE_NOTES -->', () => renderReleaseNotes());
+        return {
+          html: html
+            .replace('<!-- SITE_HEADER -->', SITE_HEADER)
+            .replace('<!-- SITE_FOOTER -->', SITE_FOOTER)
+            .replace('<!-- RELEASE_NOTES -->', () => renderReleaseNotes()),
+          tags: [{ tag: 'script', children: PREPAINT_THEME_SCRIPT, injectTo: 'head' }]
+        };
       }
     }
   };

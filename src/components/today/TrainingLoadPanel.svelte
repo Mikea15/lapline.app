@@ -6,7 +6,7 @@
   import InfoLabel from '../InfoLabel.svelte';
   import TrainingLoadChart from '../TrainingLoadChart.svelte';
   import type { Activity } from '../../lib/types';
-  import { loadBand, LOAD_BAND_COLOR, type AcuteChronic, type LoadBand } from '../../lib/training-load';
+  import { loadBand, LOAD_BAND_COLOR, LOAD_BAND_LABEL, type AcuteChronic, type LoadBand } from '../../lib/training-load';
 
   interface Props {
     activities: Activity[];
@@ -20,10 +20,10 @@
   // covers (the last is open-ended, drawn up to 2.0).
   // `range` and `meaning` explain each band in the key under the chart.
   const BANDS: { band: LoadBand; label: string; from: number; to: number; weight: number; range: string; meaning: string }[] = [
-    { band: 'detrain', label: 'Detrain', from: 0, to: 0.8, weight: 1, range: 'below 0.8', meaning: "Training less than you're used to. Fitness slowly drifts down." },
-    { band: 'productive', label: 'Productive', from: 0.8, to: 1.3, weight: 1.6, range: '0.8–1.3', meaning: 'The sweet spot. Enough to build fitness without a spike.' },
-    { band: 'caution', label: 'Caution', from: 1.3, to: 1.5, weight: 0.8, range: '1.3–1.5', meaning: 'Ramping up quicker than usual.' },
-    { band: 'risk', label: 'Risk', from: 1.5, to: 2, weight: 0.8, range: 'above 1.5', meaning: 'A spike well above your baseline, where injury risk rises.' }
+    { band: 'detrain', label: LOAD_BAND_LABEL.detrain, from: 0, to: 0.8, weight: 1, range: 'below 0.8', meaning: "Training less than you're used to. Fitness slowly drifts down." },
+    { band: 'productive', label: LOAD_BAND_LABEL.productive, from: 0.8, to: 1.3, weight: 1.6, range: '0.8–1.3', meaning: 'The sweet spot. Enough to build fitness without a spike.' },
+    { band: 'caution', label: LOAD_BAND_LABEL.caution, from: 1.3, to: 1.5, weight: 0.8, range: '1.3–1.5', meaning: 'Ramping up quicker than usual.' },
+    { band: 'risk', label: LOAD_BAND_LABEL.risk, from: 1.5, to: 2, weight: 0.8, range: 'above 1.5', meaning: 'A spike well above your baseline, where injury risk rises.' }
   ];
   const TOTAL_WEIGHT = BANDS.reduce((s, b) => s + b.weight, 0);
 
@@ -55,7 +55,7 @@
 <div class="tl">
   <div class="tl-head">
     <div class="tl-title">
-      <InfoLabel class="panel-label" text="Training load" tip="Weekly training load in arbitrary units (au), against your 42-day chronic average. The strip under the bars is each week's acute:chronic ratio." />
+      <InfoLabel class="panel-label" text="Training load" tip="A score for how much you trained: hours of running, cycling and swimming, weighted by sport. The line is your 6-week weekly average (chronic load); the strip under the bars is each week's acute:chronic ratio." />
       <p class="panel-prose">Weekly load against your 42-day chronic baseline. The strip below is the ratio between them.</p>
     </div>
     <div class="tl-ratio-value">
@@ -63,7 +63,7 @@
       <InfoLabel
         class="tl-ratio-label"
         text="Acute : chronic"
-        tip="Acute (7-day) load divided by chronic (42-day) load: the standard ratio for flagging under- or over-training. 0.8-1.3 is the productive band; above ~1.5 risks overreaching."
+        tip="Acute (7-day) load divided by chronic (42-day) load: the standard ratio for flagging under- or over-training. 0.8-1.3 is the productive band; above 1.5 is the risk band."
         openBelow
       />
     </div>
@@ -100,7 +100,7 @@
     {/each}
   </div>
 
-  <p class="tl-note mono">Wellness data (HRV, sleep) isn't in FIT exports — the ratio stands in as the closest recovery proxy.</p>
+  <p class="tl-note mono">Your workout files don't include sleep or HRV, so this ratio is the closest guide to recovery here.</p>
 </div>
 
 <style>

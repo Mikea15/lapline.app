@@ -8,7 +8,7 @@
      on the same week slots, so they stay at the type scale's real size. -->
 <script lang="ts">
   import type { Activity } from '../lib/types';
-  import { weeklyLoadBuckets, trailingMean, loadBand, LOAD_BAND_COLOR, type LoadBand } from '../lib/training-load';
+  import { weeklyLoadBuckets, trailingMean, loadBand, LOAD_BAND_COLOR, LOAD_BAND_LABEL } from '../lib/training-load';
   import { chartLabelFontSize, chartViewBoxHeight, axisLabelSlots } from '../lib/chart-scale';
   import { settingsStore } from '../lib/stores.svelte';
   import { addDays, bucketIndexForDate, bucketStartDate, formatDateRangeShort, formatDateShort } from '../lib/date-utils';
@@ -36,7 +36,6 @@
   let weekly = $derived(allWeekly.slice(CHRONIC_WINDOW));
   let chronic = $derived(chronicAll.slice(CHRONIC_WINDOW));
   // Each week's own acute:chronic ratio (null with no chronic baseline yet).
-  const BAND_NAME: Record<LoadBand, string> = { detrain: 'detrain', productive: 'productive', caution: 'caution', risk: 'risk' };
   let ratios = $derived(weekly.map((w, i) => (chronic[i]! > 0 ? w.load / chronic[i]! : null)));
 
   let domainMax = $derived.by(() => {
@@ -255,7 +254,7 @@
           <span class="chart-tooltip-value">no baseline yet</span>
         {:else}
           {@const band = loadBand(tooltip.ratio)}
-          <span class="chart-tooltip-value" style="color: {LOAD_BAND_COLOR[band]};">{tooltip.ratio.toFixed(2)} · {BAND_NAME[band]}</span>
+          <span class="chart-tooltip-value" style="color: {LOAD_BAND_COLOR[band]};">{tooltip.ratio.toFixed(2)} · {LOAD_BAND_LABEL[band].toLowerCase()}</span>
         {/if}
       </div>
       <div class="chart-tooltip-row">

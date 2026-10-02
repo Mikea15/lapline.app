@@ -100,11 +100,11 @@
   }
   .kpi-chip.positive {
     background: var(--positive);
-    color: var(--bg-app);
+    color: var(--on-accent);
   }
   .kpi-chip.caution {
     background: var(--caution);
-    color: var(--bg-app);
+    color: var(--on-accent);
   }
   .kpi-chip.neutral {
     background: var(--bg-row-hover);

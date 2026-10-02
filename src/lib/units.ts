@@ -9,6 +9,8 @@ const KM_TO_MI = 0.621371;
 const KG_TO_LB = 2.20462;
 const M_TO_FT = 3.28084;
 const PACE_KM_TO_MI = 1.60934; // min/km -> min/mi: multiply by this
+// Kilometres in a mile - also converts a per-km time difference to per-mile.
+export const MI_IN_KM = PACE_KM_TO_MI;
 
 // Raw numeric converters (metric -> display units, or passthrough for
 // metric) - for feeding chart y-value arrays, which need numbers, not the

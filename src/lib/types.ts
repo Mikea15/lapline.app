@@ -182,7 +182,6 @@ export interface ActivityDetail extends Activity {
   perfCondition: (number | null)[];
   lat: (number | null)[];
   lon: (number | null)[];
-  maxHr: number;
   laps: Lap[];
   lengths: SwimLength[];
 }

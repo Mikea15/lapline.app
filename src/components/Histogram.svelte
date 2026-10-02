@@ -116,9 +116,8 @@
       <span>{formatValue(domainMax)}</span>
     </div>
     <div class="hist-footer mono">
-      <span>n = {n} {unitLabel}</span>
-      <span>p10 {formatValue(p10)}</span>
-      <span>p90 {formatValue(p90)}</span>
+      <span>{n} {unitLabel}</span>
+      <span>middle 80%: {formatValue(p10)}–{formatValue(p90)}</span>
     </div>
   {/if}
 </div>

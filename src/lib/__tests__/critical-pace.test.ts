@@ -56,7 +56,6 @@ function constantPaceDetail(a: Activity, speedMPerSec: number, totalSec = 4000):
     perfCondition: [null, null],
     lat: [null, null],
     lon: [null, null],
-    maxHr: 0,
     laps: [],
     lengths: []
   };

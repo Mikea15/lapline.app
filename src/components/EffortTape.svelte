@@ -5,7 +5,7 @@
 <script lang="ts">
   import { buildEffortColumns } from '../lib/effort-tape';
   import { ZONE_COLORS, ZONE_NAMES, zoneIndexForHr } from '../lib/hr-zones';
-  import { formatPace, toDisplayElevation, elevationUnit, type UnitSystem } from '../lib/units';
+  import { formatPace, formatDistance, toDisplayElevation, elevationUnit, type UnitSystem } from '../lib/units';
   import type { Lap } from '../lib/types';
 
   interface Props {
@@ -267,7 +267,7 @@
       {/each}
       {#if hasDistance && pacePath}
         <path d={pacePath} fill="none" stroke="var(--bg-app)" stroke-width="3.4" vector-effect="non-scaling-stroke" />
-        <path d={pacePath} fill="none" stroke="#ffffff" stroke-width="1.4" vector-effect="non-scaling-stroke" />
+        <path d={pacePath} fill="none" stroke="var(--ink-1)" stroke-width="1.4" vector-effect="non-scaling-stroke" />
         {#if highlightBand}
           <path d={pacePath} fill="none" stroke="var(--accent)" stroke-width="2.4" vector-effect="non-scaling-stroke" clip-path="url(#effort-tape-highlight-clip)" />
         {/if}
@@ -284,7 +284,7 @@
       <div class="chart-tooltip effort-tape-tooltip" class:flip={tooltipFlip} style="left: {cursorPct}%;">
         <div class="chart-tooltip-row">
           <span class="chart-tooltip-label">{formatTime(readout.t)}</span>
-          {#if hasDistance}<span class="chart-tooltip-value">{(readout.distance / 1000).toFixed(2)} km</span>{/if}
+          {#if hasDistance}<span class="chart-tooltip-value">{formatDistance(readout.distance / 1000, unitSystem, 2)}</span>{/if}
         </div>
         {#if hasHr}
           <div class="chart-tooltip-row">
@@ -315,7 +315,7 @@
 
 <style>
   .effort-tape {
-    background: rgba(12, 15, 19, 0.9);
+    background: var(--tooltip-bg);
     border: 1px solid var(--line-panel);
     border-radius: var(--radius);
     padding: var(--space-4) var(--space-5) var(--space-3);

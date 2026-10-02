@@ -75,7 +75,7 @@
 <div class="tiz">
   <div class="tiz-head">
     <div class="tiz-title">
-      <InfoLabel class="panel-label" text="Time in zone" tip="How training time over the selected range (the header's range filter, top right) splits across heart-rate zones 1-5, against a polarised plan's targets." />
+      <InfoLabel class="panel-label" text="Time in zone" tip="How training time over your default range (Settings > Default time range) splits across heart-rate zones 1-5, against a polarised plan's targets." />
       <p class="panel-prose">
         {total > 0 ? `${hm(total)} over ${rangePhrase}.` : `No heart-rate zone data in ${rangePhrase}.`} Polarised training puts ~{POLARISED_TARGETS.easy}% easy, ~{POLARISED_TARGETS.hard}% hard, and little in between.
       </p>
@@ -207,7 +207,7 @@
     padding: 0 var(--space-5);
     border-radius: 2px;
     font-size: var(--fs-xs);
-    color: var(--bg-app);
+    color: var(--on-accent);
     white-space: nowrap;
     overflow: hidden;
   }

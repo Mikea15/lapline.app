@@ -11,10 +11,29 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: '1.6.0',
+    date: '2026-10-02',
+    changes: [
+      'A new home page, with a look at each screen, how your data stays on your device, and how to get your workouts out of your watch.',
+      'Light mode: choose Dark, Light or Auto (follows your device) in Settings → Theme, or tap the sun/moon button next to Sync. The website follows the same choice.',
+      'Import is now the Sync button at the top of every screen.',
+      'You can drop a Garmin "Export Original" .zip straight into Sync: the workouts inside are imported, no unzipping needed.',
+      'The date range picker moved from the header into the filter bar on Trends, which is now a single compact row. Today follows your default range in Settings.',
+      'Records always covers all time. The critical pace curve moved to Trends, where it follows the range and filters you pick.',
+      'Aerobic base now counts time in zone 2 only.',
+      'VO₂ max now comes from your best hard run in the last 90 days, so it can go down as well as up.',
+      'One set of names for training load bands everywhere: Detrain, Productive, Caution and Risk.',
+      'Clearer wording across the app: explanations for training load, training effect, SWOLF and more, plain error messages when a file can’t be imported, and "Time trained" used everywhere.',
+      'More of the app now follows the imperial setting, including Trends, Records, the Calendar and Run volume.',
+      'Fixed: on some laptop screens the Calendar’s Week column was cut off.',
+      'Removed the Maximum heart rate setting, which had no effect: heart-rate zones come from your watch.'
+    ]
+  },
+  {
     version: '1.5.0',
     date: '2026-10-01',
     changes: [
-      'Today has a new look: six cards up top, each with a chart or breakdown (chronic load trend and ramp, VO₂ max rating, run volume, aerobic base, time per sport, and a recovery ring).',
+      'Today has a new look: six cards up top, covering your fitness trend (chronic load), VO₂ max rating, run volume, aerobic base, time per sport and recovery.',
       'VO₂ max is now rated Poor to Superior for your age and sex. Add your birth year and sex in Settings → Training; both stay on your device.',
       'Consistency: each day is coloured by its main sport and shaded by minutes, months are split apart, and it shows active days, best streak, week streak and how often you train each weekday.',
       'Training load: your acute:chronic ratio on a Detrain / Productive / Caution / Risk scale, with advice for next week, bars and a per-week ratio strip coloured by band, and a key explaining each band.',
@@ -47,37 +66,36 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     version: '1.3.0',
     date: '2026-09-20',
     changes: [
-      'You can now import GPX files (like the ones Strava exports), not just .fit files.',
+      'You can now import .gpx files (like the ones Strava exports), not just .fit files.',
       'Swimming: your shown average pace now reflects only the time you were actually swimming, not rest breaks between lengths - so each length compares more sensibly against it.',
       'Cycling: the per-kilometre tiles now show speed instead of pace, matching the rest of the app.',
       'Bouldering and climbing activities now get their own colour and filter, instead of being grouped under "Other".',
       'Cardio and other no-distance workouts now show your heart-rate breakdown more prominently, right under the timeline.',
       'The Import window no longer shows last time\'s results when you reopen it - it starts fresh, even after resetting all your data.',
       'The "type RESET to confirm" box now focuses automatically, and pressing Enter confirms once you\'ve typed it.',
-      'The timeline no longer shows a misleading "0 bpm" heart-rate reading, or a confusing effort breakdown, for activities that don\'t track heart rate.',
-      'Decided against two ideas for now: labelling extra points along a route (like street names), and a training-plan calendar feature - both would need real data this app doesn\'t have a source for.'
+      'The timeline no longer shows a misleading "0 bpm" heart-rate reading, or a confusing effort breakdown, for activities that don\'t track heart rate.'
     ]
   },
   {
     version: '1.2.0',
     date: '2026-09-20',
     changes: [
-      'Added a Calendar screen: a real month grid of completed sessions, with a week rollup column, a month stat strip, and a responsive week-list layout below ~1080px.',
-      'The Avg HR column on the Today and Activities ledgers is now color-coded by heart-rate zone, matching the adjacent HR Zones bar.',
-      'Fixed a bug where re-parsing a stored file after a sport-name fix (e.g. Generic → Bouldering) could create a duplicate activity instead of correcting the original.',
-      'A device’s own custom activity profile name (e.g. "Footy") is now shown even when the underlying sport is already specific, instead of being silently dropped.',
-      'The Today and Activities ledgers now show an activity’s cached city name next to the sport, when it’s already been looked up.',
-      'Tape: added a real elevation/gradient profile chart, plotting altitude against distance for GPS activities.',
-      'Tape: the Timeline chart now shows a real tooltip (time, HR, zone, pace, elevation) instead of a static "Scrub the run" label.',
-      'Tape: pool-swim Rest periods now highlight in the length grid and pool schematic while scrubbing, matching how active lengths already did.',
-      'Tape: accessibility fixes for the Route panel’s default Plan view, the zone-mix tiles, and the Plan/Relief toggle.'
+      'New Calendar screen: your sessions on a month grid, with weekly totals and a month summary. On smaller screens it switches to a week-by-week list.',
+      'Average heart rate in the Today and Activities lists is now coloured by heart-rate zone, matching the zones bar next to it.',
+      'Fixed: updating your activities after a sport-name fix (e.g. Generic → Bouldering) could create a duplicate instead of correcting the original.',
+      'Your device’s own name for an activity (e.g. "Footy") now always shows.',
+      'The Today and Activities lists show where an activity took place, once its place name has been looked up.',
+      'Activity detail: a new elevation profile for GPS activities, showing height and gradient along the route.',
+      'Activity detail: hover the timeline to see time, heart rate, zone, pace and elevation at that point.',
+      'Activity detail: rest periods in a pool swim now highlight as you move along the timeline, like lengths do.',
+      'Activity detail: accessibility fixes for the route map and zone tiles.'
     ]
   },
   {
     version: '1.1.0',
     date: '2026-09-17',
     changes: [
-      'Swimming activities now show a schematic pool instead of an empty Route panel, colored by heart-rate zone per length.',
+      'Swimming activities now show a schematic pool instead of an empty Route panel, coloured by heart-rate zone per length.',
       'Added an About page explaining what this app does and how your data is handled.',
       'Added Terms & Conditions and Privacy Policy pages, linked from About.',
       'The Import screen now has a short guide on getting .fit files off your watch or bike computer.',
@@ -91,7 +109,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: '1.0.0',
     date: '2026-09-09',
-    changes: ['Initial release: import .fit files and track training via Today, Activities, Trends, and Records.']
+    changes: ['Initial release: open your workouts and follow your training in Today, Activities, Trends and Records.']
   }
 ];
 

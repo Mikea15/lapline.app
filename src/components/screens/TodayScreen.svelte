@@ -23,7 +23,7 @@
 
   interface Props {
     rangeDays: number;
-    /** The header's global range filter, as a short label ("12w", "1y",
+    /** Settings' default range, as a short label ("12w", "1y",
         "All", or a formatted custom date range) - shown directly on the
         three KPI cards below that scale with it (Run volume, Aerobic base,
         Time trained), so the window each number covers is always the one
@@ -52,7 +52,7 @@
   let ratio = $derived(acuteChronicRatio(activities));
   let recovery = $derived(currentRecovery(activities));
 
-  // Run volume, Aerobic base and Time trained all scale with the header's
+  // Run volume, Aerobic base and Time trained all scale with the default
   // selected range (rangeDays/rangeLabel) rather than each hard-coding its
   // own trailing window.
   let runVolRange = $derived(runVolumeKm(activities, rangeDays));
@@ -96,10 +96,10 @@
     if (ledgerActivities.length === 0) return 'no sessions yet';
     const oldest = ledgerActivities[ledgerActivities.length - 1]!.date;
     const newest = ledgerActivities[0]!.date;
-    return `${ledgerActivities.length} sessions · ${formatDateDMY(oldest)} – ${formatDateDMY(newest)}`;
+    return `${ledgerActivities.length} ${ledgerActivities.length === 1 ? 'activity' : 'activities'} · ${formatDateDMY(oldest)} – ${formatDateDMY(newest)}`;
   });
 
-  // Time in zone over the header's selected range, for Aerobic base.
+  // Time in zone over the default range, for Aerobic base.
   let weeklyZoneSeconds = $derived(zoneSeconds(activities, rangeDays));
   // The same span just before it, for Aerobic base's change in points.
   let prevZoneSeconds = $derived(zoneSeconds(activities, 2 * rangeDays, rangeDays));
@@ -140,7 +140,7 @@
         </div>
         <div class="mt-4">
           {#if ledgerActivities.length === 0}
-            <div class="empty-state">No activities imported yet.</div>
+            <div class="empty-state">No activities yet. Choose Sync to add your first.</div>
           {:else}
             <ActivityLedger activities={ledgerActivities} {unitSystem} {prIds} onSelect={onSelectActivity} />
           {/if}

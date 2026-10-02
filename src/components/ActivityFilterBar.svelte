@@ -6,7 +6,6 @@
      behave identically rather than diverging into two implementations. -->
 <script lang="ts">
   import type { SportFamily } from '../lib/sport-color';
-  import InfoLabel from './InfoLabel.svelte';
   import ActivityTypeFilter from './ActivityTypeFilter.svelte';
 
   interface Props {
@@ -18,16 +17,6 @@
   let { activityTypes = $bindable() }: Props = $props();
 </script>
 
-<div class="panel trends-filter-bar">
-  <div class="panel-label trends-filter-title">Filter</div>
-  <div class="trends-filter-controls">
-    <div class="trends-filter-field">
-      <InfoLabel
-        class="panel-label"
-        text="Activity Type"
-        tip="Select one or more sports to filter by."
-      />
-      <ActivityTypeFilter bind:selected={activityTypes} />
-    </div>
-  </div>
+<div class="panel filter-bar" role="group" aria-label="Filter">
+  <ActivityTypeFilter bind:selected={activityTypes} />
 </div>

@@ -6,7 +6,7 @@
 <script lang="ts">
   import KpiCard from './KpiCard.svelte';
   import type { RecoveryStatus } from '../../lib/recovery';
-  import type { AcuteChronic } from '../../lib/training-load';
+  import { LOAD_BAND_LABEL, type AcuteChronic } from '../../lib/training-load';
   import { formatDateShort } from '../../lib/date-utils';
 
   interface Props {
@@ -32,7 +32,7 @@
 
 <KpiCard
   label="Recovery"
-  tip="Garmin's own on-device recovery-time estimate, counting down from your most recent hard effort (the outer ring fills as it runs out), and the acute:chronic load ratio (the inner arc, 0-2). Not a live readiness score: this app only imports workout FIT files, which carry no HRV or wellness data."
+  tip="Your watch's recovery-time estimate, counting down from your last hard session (outer ring); the inner arc is your acute:chronic ratio. It isn't a readiness score: workout files don't include sleep or HRV."
   edge={color}
   meta={recovery.sourceDate ? `since ${formatDateShort(recovery.sourceDate)}` : ''}
   chip={hasData ? { text: `${recovery.hoursRemaining} h`, tone: ready ? 'positive' : 'caution' } : null}
@@ -57,7 +57,7 @@
         <span class="line mono">no recovery estimate yet</span>
       {/if}
       {#if ratio.ratio > 0}
-        <span class="line mono"><b>load ratio {ratio.ratio.toFixed(2)}</b> · {ratio.status.toLowerCase()}</span>
+        <span class="line mono"><b>load ratio {ratio.ratio.toFixed(2)}</b> · {LOAD_BAND_LABEL[ratio.band].toLowerCase()}</span>
       {/if}
     </div>
   </div>

@@ -8,7 +8,7 @@
 
 ## Privacy
 
-Your activity files are parsed in your browser and stored in your browser's own database (IndexedDB). They never leave your device, and there's no server that could receive them. Three optional features talk to the network, and all of them are **off until you turn them on** in Settings: anonymous usage analytics (SimpleAnalytics: which screens and features are used, never activity data), place names for activities (sends an activity's start coordinate to OpenStreetMap's Nominatim) and weather (sends an activity's start coordinate, date and time to Open-Meteo). To move to another browser or device, use Settings > Backup to export everything as one zip and restore it there.
+Your activity files are parsed in your browser and stored in your browser's own database (IndexedDB). They never leave your device, and there's no server that could receive them. Three optional features talk to the network, and all of them are **off until you turn them on** in Settings: anonymous usage analytics (SimpleAnalytics: which screens and features are used, never activity data), place names for activities (sends an activity's start coordinate to OpenStreetMap's Nominatim) and weather (sends an activity's start coordinate and date to Open-Meteo). To move to another browser or device, use Settings > Backup to export everything as one zip and restore it there.
 
 ## Development
 
@@ -34,7 +34,7 @@ Lapline's estimates (VO₂ max, training effect, recovery time, training load) a
 
 ## Feedback
 
-Bugs, files that won't import, ideas: email [hello@lapline.app](mailto:hello@lapline.app) or open an issue. Updates: [@laplineapp](https://x.com/laplineapp) on X.
+Bugs, files that won't import, ideas: email [hello@lapline.app](mailto:hello@lapline.app) or [open an issue](https://github.com/Mikea15/lapline.app/issues). Updates: [@laplineapp](https://x.com/laplineapp) on X.
 
 ## Support
 

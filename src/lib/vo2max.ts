@@ -63,13 +63,20 @@ export interface Vo2MaxEstimate {
   date: string | null;
 }
 
-// The runner's single best qualifying effort across all real running
-// activities to date - the current VO2max estimate shown on Today.
+const TREND_WINDOW_DAYS = 90;
+
+// The current VO2max estimate shown on Today: the best qualifying effort in
+// the last 90 days - the same window as the newest point of
+// weeklyVo2MaxTrend, so the value and its "in 4w" change agree, and it can
+// fall as well as rise.
 export async function currentVo2Max(
   activities: Activity[],
   getDetail: (id: number) => Promise<ActivityDetail | null>
 ): Promise<Vo2MaxEstimate> {
-  const runs = activities.filter((a) => sportFamily(a.sport) === 'running' && a.distanceKm > 0);
+  const runs = activities.filter((a) => {
+    const age = daysAgo(a.date);
+    return sportFamily(a.sport) === 'running' && a.distanceKm > 0 && age >= 0 && age < TREND_WINDOW_DAYS;
+  });
   let best: number | null = null;
   let bestId: number | null = null;
   let bestDate: string | null = null;
@@ -85,8 +92,6 @@ export async function currentVo2Max(
   }
   return { value: best !== null ? Math.round(best * 10) / 10 : null, activityId: bestId, date: bestDate };
 }
-
-const TREND_WINDOW_DAYS = 90;
 
 // Weekly trend (oldest -> newest): the best qualifying effort found within a
 // trailing 90-day window ending each week, so the series can rise or fall

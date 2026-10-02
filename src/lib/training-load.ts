@@ -53,17 +53,8 @@ export function trailingMean(weeklyLoads: number[], windowWeeks: number): number
   });
 }
 
-export type LoadStatus = 'Detraining' | 'Productive' | 'High risk' | 'Overreaching';
-
-export function loadStatus(ratio: number): LoadStatus {
-  if (ratio < 0.8) return 'Detraining';
-  if (ratio <= 1.3) return 'Productive';
-  if (ratio <= 1.5) return 'High risk';
-  return 'Overreaching';
-}
-
-// The same thresholds as loadStatus, under the names Today's Training load
-// panel uses for its band strip and per-week ratio chips.
+// The acute:chronic ratio's bands - one set of names everywhere (Training
+// load panel, its chart, the Recovery card).
 export type LoadBand = 'detrain' | 'productive' | 'caution' | 'risk';
 
 export function loadBand(ratio: number): LoadBand {
@@ -72,6 +63,13 @@ export function loadBand(ratio: number): LoadBand {
   if (ratio <= 1.5) return 'caution';
   return 'risk';
 }
+
+export const LOAD_BAND_LABEL: Record<LoadBand, string> = {
+  detrain: 'Detrain',
+  productive: 'Productive',
+  caution: 'Caution',
+  risk: 'Risk'
+};
 
 export const LOAD_BAND_COLOR: Record<LoadBand, string> = {
   detrain: 'var(--zone-1)',
@@ -84,7 +82,7 @@ export interface AcuteChronic {
   acute7d: number;
   chronic42d: number; // mean weekly load over the trailing 42 days
   ratio: number; // 0 when chronic42d is 0 (no history yet)
-  status: LoadStatus;
+  band: LoadBand;
 }
 
 export function acuteChronicRatio(activities: Activity[]): AcuteChronic {
@@ -99,7 +97,7 @@ export function acuteChronicRatio(activities: Activity[]): AcuteChronic {
   }
   const chronic42d = sum42d / 6; // 42 days = 6 weeks
   const ratio = chronic42d > 0 ? acute7d / chronic42d : 0;
-  return { acute7d, chronic42d, ratio, status: loadStatus(ratio) };
+  return { acute7d, chronic42d, ratio, band: loadBand(ratio) };
 }
 
 // Real run distance in the trailing `days` window, for the "Run volume" KPI.

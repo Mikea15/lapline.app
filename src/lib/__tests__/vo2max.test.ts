@@ -58,7 +58,6 @@ function constantPaceDetail(a: Activity, speedMPerSec: number): ActivityDetail {
     perfCondition: [null, null],
     lat: [null, null],
     lon: [null, null],
-    maxHr: 0,
     laps: [],
     lengths: []
   };
@@ -88,6 +87,17 @@ describe('currentVo2Max', () => {
     expect(result.date).toBe(fast.date);
     expect(result.value).not.toBeNull();
     expect(result.value!).toBeGreaterThan(0);
+  });
+
+  it('only counts efforts from the last 90 days', async () => {
+    const old = activity({ date: daysAgoDate(120) });
+    const recent = activity({ date: daysAgoDate(5) });
+    const details = new Map([
+      [old.id, constantPaceDetail(old, 1000 / 200)], // faster, but stale
+      [recent.id, constantPaceDetail(recent, 1000 / 300)]
+    ]);
+    const result = await currentVo2Max([old, recent], async (id) => details.get(id) ?? null);
+    expect(result.activityId).toBe(recent.id);
   });
 
   it('ignores non-running activities entirely', async () => {

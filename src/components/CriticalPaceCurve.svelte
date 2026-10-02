@@ -7,7 +7,7 @@
   interface Props {
     curves: CriticalPaceCurves;
     unitSystem: UnitSystem;
-    /** The header's range-filter label ("12w", "1y", "All", or a formatted
+    /** The range filter's label ("12w", "1y", "All", or a formatted
         custom date range) - names the two compared windows concretely
         ("current 12w" / "prev 12w") instead of the vaguer "this range". */
     rangeLabel: string;
@@ -198,16 +198,12 @@
     <span class="zone-key-item mono"><span class="zone-key-swatch" style="background: var(--neutral-line);"></span>prev {rangeLabel}</span>
     <span class="zone-key-item mono"><span class="zone-key-swatch" style="background: var(--accent);"></span>current {rangeLabel}</span>
     {#if delta60min !== null}
-      <span class="mono" style="margin-left: auto; color: var(--accent);">{delta60min >= 0 ? '+' : ''}{delta60min.toFixed(1)}% at 60 min</span>
+      <span class="mono" style="margin-left: auto; color: var(--accent);">{Math.abs(delta60min).toFixed(1)}% {delta60min >= 0 ? 'faster' : 'slower'} at 60 min</span>
     {/if}
   </div>
   <p class="curve-explainer">
-    Each point on the x-axis is a length of time, from a 1-minute sprint to a 60-minute tempo run. Its value is the fastest pace you actually held
-    for that whole duration - found by scanning every second of every run, not just an official lap or an all-time PR. Teal is current {rangeLabel}
-    (your currently selected range); grey is the {rangeLabel} right before it - a whole comparison period, not one earlier run. Say the 5-minute
-    point reads 4:05/km in teal and 4:28/km in grey: that means the fastest pace you held for a full 5 minutes during the current {rangeLabel}
-    (4:05/km) beats the fastest 5-minute pace from the {rangeLabel} before it (4:28/km) - you've gotten faster at that effort length. Wherever teal
-    sits above grey, you're running faster for that length of effort than you were in the previous {rangeLabel}.
+    Each point is your fastest pace held for that length of time, from 1 to 60 minutes. Where the current {rangeLabel} line sits above the one
+    before it, you're faster at that effort length.
   </p>
 {/if}
 

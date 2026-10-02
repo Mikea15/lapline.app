@@ -39,9 +39,11 @@
     if (input) input.value = '';
   }
 
-  // A Lapline backup .zip dropped here is restored (its files go through the
-  // same import, so the progress below covers it) - the path a returning user
-  // takes on a new browser or domain.
+  // A .zip dropped here is either a Lapline backup, which is restored - the
+  // path a returning user takes on a new browser or domain - or a zip of
+  // workout files (e.g. Garmin's "Export Original"), whose .fit/.gpx files
+  // are imported. Both go through the same import, so the progress below
+  // covers them.
   let backupError = $state('');
 
   async function processFiles(files: File[]) {
@@ -52,7 +54,7 @@
       return name.endsWith('.fit') || name.endsWith('.gpx');
     });
     if (importable.length === 0 && backups.length === 0) {
-      alert('No .fit, .gpx or backup .zip files selected');
+      alert('None of these can be imported. Choose .fit or .gpx workout files, or a .zip of them or a Lapline backup.');
       return;
     }
     for (const zip of backups) {
@@ -76,13 +78,13 @@
 {#if deviceSyncStore.supported}
   <div class="card" style="max-width: 590px;">
     <div class="flex justify-between items-center">
-      <span class="section-title">Sync From Device</span>
+      <span class="section-title">Sync from your watch</span>
       {#if deviceSyncStore.connected}
         <button class="btn btn-secondary btn-sm" onclick={() => deviceSyncStore.disconnect()}>Disconnect</button>
       {/if}
     </div>
     <p style="margin: var(--space-3) 0 var(--space-7); color: var(--ink-muted); font-size: var(--fs-md);">
-      Grant access to the folder your watch exposes over USB (e.g. Garmin's <code>GARMIN/ACTIVITY</code>) once, then
+      Grant access to the folder your watch exposes over USB (e.g. Garmin's <code>GARMIN/Activity</code>) once, then
       re-sync it any time without picking files by hand. Chrome/Edge only.
     </p>
 
@@ -117,7 +119,7 @@
 {/if}
 
 <div class="card {deviceSyncStore.supported ? 'mt-4' : ''}" style="max-width: 590px;">
-  <span class="section-title">Import Activity Files</span>
+  <span class="section-title">Import activities</span>
 
   <!-- Drag handlers are mouse-only convenience; the label below already gives
        full keyboard/click access to the same file picker. -->
@@ -145,7 +147,7 @@
       <p style="margin: 0 0 var(--space-2); font-size: var(--fs-lg); font-weight: var(--fw-semibold);">{touch.current ? 'Tap to choose .fit or .gpx files' : 'Drop .fit or .gpx files here or click to browse'}</p>
       <p style="margin: 0 0 var(--space-2); font-size: var(--fs-base); color: var(--ink-muted);">Moving from another browser? {touch.current ? 'Choose' : 'Drop'} your Lapline backup .zip here.</p>
       {#if backupError}<p style="margin: 0; font-size: var(--fs-base); color: var(--critical);">{backupError}</p>{/if}
-      <p style="margin: 0; font-size: var(--fs-md); color: var(--ink-muted);">Multiple files supported · FIT (Garmin, Wahoo, and other watches) and GPX (Strava, and other GPS exports)</p>
+      <p style="margin: 0; font-size: var(--fs-md); color: var(--ink-muted);">Pick several at once · .fit from most watches and bike computers, .gpx from other GPS apps</p>
     </label>
   </div>
 
@@ -189,7 +191,7 @@
     <div class="mt-4 card" style="padding: var(--space-4) 0;">
       <div class="import-file-list">
         {#each importStore.state.files as f (f.name)}
-          <div class="import-file-row">
+          <div class="import-file-row" class:error={f.status === 'error'}>
             <span class="import-file-status">
               {#if f.status === 'pending'}
                 <span class="status-dot"></span>
@@ -214,12 +216,12 @@
   {#if importStore.state.status === 'done'}
     <div class="mt-4 card" style="border-color: color-mix(in srgb, {importStore.state.result?.errors.length ? 'var(--critical)' : 'var(--good)'} 35%, transparent);">
       <h4 style="margin: 0 0 var(--space-7); color: {importStore.state.result?.errors.length ? 'var(--critical)' : 'var(--good-text)'};">
-        Import {importStore.state.result?.errors.length ? 'Finished With Errors' : 'Complete'}
+        Import {importStore.state.result?.errors.length ? 'finished with errors' : 'complete'}
       </h4>
       <div class="grid grid-3" style="text-align: center;">
         <div>
           <div style="font-size: var(--fs-xl); font-weight: var(--fw-bold);">{importStore.state.result?.files}</div>
-          <div class="stat-label" style="margin-top: var(--space-1);">Files</div>
+          <div class="stat-label" style="margin-top: var(--space-1);">Imported</div>
         </div>
         <div>
           <div style="font-size: var(--fs-xl); font-weight: var(--fw-bold);">{importStore.state.result?.imported}</div>
@@ -230,16 +232,19 @@
           <div class="stat-label" style="margin-top: var(--space-1);">Errors</div>
         </div>
       </div>
+      {#if importStore.state.result?.errors.length}
+        <p style="margin: var(--space-6) 0 0; font-size: var(--fs-md); color: var(--ink-muted);">Files marked ✕ weren't imported. The reason is next to each one.</p>
+      {/if}
 
-      <button class="btn btn-secondary mt-4" onclick={() => importStore.reset()}>Import More</button>
+      <button class="btn btn-secondary mt-4" onclick={() => importStore.reset()}>Import more</button>
     </div>
   {/if}
 
   {#if importStore.state.status === 'error'}
     <div class="mt-4 card" style="border-color: color-mix(in srgb, var(--critical) 35%, transparent);">
-      <h4 style="margin: 0 0 var(--space-6); color: var(--critical);">Import Failed</h4>
+      <h4 style="margin: 0 0 var(--space-6); color: var(--critical);">Import failed</h4>
       <p style="color: var(--critical); margin: 0;">{importStore.state.error}</p>
-      <button class="btn btn-secondary mt-4" onclick={() => importStore.reset()}>Try Again</button>
+      <button class="btn btn-secondary mt-4" onclick={() => importStore.reset()}>Try again</button>
     </div>
   {/if}
 </div>

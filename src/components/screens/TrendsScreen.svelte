@@ -1,10 +1,11 @@
 <!-- TrendsScreen.svelte - rolling-range training trends. -->
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { activitiesStore, settingsStore } from '../../lib/stores.svelte';
   import { addDays, daysBetween, formatDateRangeShort } from '../../lib/date-utils';
   import { sportFamily } from '../../lib/sport-color';
   import type { SportFamily } from '../../lib/sport-color';
-  import { toDisplayDistance, distanceUnit, formatPace } from '../../lib/units';
+  import { toDisplayDistance, toDisplayElevation, distanceUnit, elevationUnit, formatPace, paceUnit, MI_IN_KM } from '../../lib/units';
   import { kmSplitPaces } from '../../lib/best-effort';
   import TrendVolumeChart from '../TrendVolumeChart.svelte';
   import EfficiencyScatter from '../EfficiencyScatter.svelte';
@@ -12,23 +13,30 @@
   import Histogram from '../Histogram.svelte';
   import InfoLabel from '../InfoLabel.svelte';
   import SkeletonChart from '../SkeletonChart.svelte';
+  import CriticalPaceCurve from '../CriticalPaceCurve.svelte';
+  import { criticalPaceCurves, type CriticalPaceCurves } from '../../lib/critical-pace';
   import TrendsFilterBar from '../TrendsFilterBar.svelte';
   import type { Subject } from '../TrendsFilterBar.svelte';
 
   interface Props {
     startDate: string;
     endDate: string;
+    /** The range filter's label ("12w", "1y", "All", or a formatted
+        custom range) - names the two windows the critical pace curve compares. */
+    rangeLabel: string;
+    /** App's shared range picker, shown in the filter bar. */
+    rangeFilter: Snippet;
   }
 
-  let { startDate, endDate }: Props = $props();
+  let { startDate, endDate, rangeLabel, rangeFilter }: Props = $props();
 
   let allActivities = $derived(activitiesStore.all);
   let unitSystem = $derived(settingsStore.getUnitSystem());
 
   // Page-local filter state: Activity Type + Subject (distance/time, for
   // both the volume chart and the value-range slider below). The date
-  // window itself is the header's global range, passed straight in - this
-  // page no longer has its own date control.
+  // window is App's shared range, whose picker App passes in as a snippet
+  // for the filter bar.
   // Empty set = "all sports" (no filter) - toggled on/off per sport by
   // clicking its name in TrendsFilterBar, so multiple types can be picked
   // at once to compare them against each other on this page's charts.
@@ -123,7 +131,10 @@
   let movingHoursDelta = $derived(delta(movingHours, sumHours(previous), 'h'));
   let avgPace = $derived(avgRunPace(current));
   let avgPacePrev = $derived(avgRunPace(previous));
-  let paceDeltaSec = $derived(avgPace > 0 && avgPacePrev > 0 ? Math.round((avgPace - avgPacePrev) * 60) : 0);
+  // Seconds per km, or per mile in imperial.
+  let paceDeltaSec = $derived(
+    avgPace > 0 && avgPacePrev > 0 ? Math.round((avgPace - avgPacePrev) * 60 * (unitSystem === 'imperial' ? MI_IN_KM : 1)) : 0
+  );
   let ascentM = $derived(sumAscent(current));
 
   // Per-km split paces for the pace histogram, resampled from each run's raw
@@ -149,6 +160,21 @@
     });
   });
 
+  // Critical pace curve: this range against the equal-length one before it,
+  // over runs matching the page's sport and value filters (criticalPaceCurves
+  // does the date windows itself). Explicit loading flag, since a range with
+  // no runs legitimately resolves to empty curves.
+  let curves = $state<CriticalPaceCurves>({ thisRange: [], previousRange: [] });
+  let curvesLoading = $state(true);
+  $effect(() => {
+    curvesLoading = true;
+    const acts = allActivities.filter((a) => matchesType(a) && inValueRange(a));
+    criticalPaceCurves(acts, (id) => activitiesStore.getDetail(id), startDate, endDate).then((c) => {
+      curves = c;
+      curvesLoading = false;
+    });
+  });
+
   // Per-activity distance/time/HR histograms need no stream fetch - all
   // three are already on the summary Activity row.
   let activityDistancesKm = $derived(current.map((a) => a.distanceKm).filter((v) => v > 0));
@@ -166,6 +192,7 @@
 
 <div class="screen">
   <TrendsFilterBar
+    {rangeFilter}
     bind:activityTypes
     bind:subject
     distanceMin={0}
@@ -180,8 +207,8 @@
 
   <div class="stat-strip">
     <div class="stat-cell">
-      <InfoLabel class="stat-cell-label" text="Total volume" tip="Total running distance in the selected range, compared to the equal-length period before it." />
-      <div class="stat-cell-value-row"><span class="stat-cell-value mono">{toDisplayDistance(totalVolumeKm, unitSystem).toFixed(1)}</span><span class="stat-cell-unit">{distanceUnit(unitSystem)} run</span></div>
+      <InfoLabel class="stat-cell-label" text="Run volume" tip="Total running distance in the selected range, compared to the equal-length period before it." />
+      <div class="stat-cell-value-row"><span class="stat-cell-value mono">{toDisplayDistance(totalVolumeKm, unitSystem).toFixed(1)}</span><span class="stat-cell-unit">{distanceUnit(unitSystem)}</span></div>
       {#if totalVolumeDelta.text}<div class="stat-cell-delta {totalVolumeDelta.direction}">{totalVolumeDelta.text}</div>{/if}
     </div>
     <div class="stat-cell">
@@ -190,24 +217,24 @@
       <div class="stat-cell-delta neutral">{sessionsPerWeek} / week</div>
     </div>
     <div class="stat-cell">
-      <InfoLabel class="stat-cell-label" text="Moving time" tip="Total hours spent actively training across all sports in the selected range." />
+      <InfoLabel class="stat-cell-label" text="Time trained" tip="Total training time across all sports in the selected range." />
       <div class="stat-cell-value-row"><span class="stat-cell-value mono">{movingHours.toFixed(1)}</span><span class="stat-cell-unit">hours</span></div>
       {#if movingHoursDelta.text}<div class="stat-cell-delta {movingHoursDelta.direction}">{movingHoursDelta.text}</div>{/if}
     </div>
     <div class="stat-cell">
       <InfoLabel class="stat-cell-label" text="Avg pace" tip="Average running pace across the selected range, weighted by distance." />
       <div class="stat-cell-value-row"><span class="stat-cell-value mono">{avgPace > 0 ? formatPace(avgPace, unitSystem) : '—'}</span></div>
-      {#if paceDeltaSec !== 0}<div class="stat-cell-delta {paceDeltaSec < 0 ? 'positive' : 'caution'}">{paceDeltaSec > 0 ? '+' : ''}{paceDeltaSec} s/km</div>{/if}
+      {#if paceDeltaSec !== 0}<div class="stat-cell-delta {paceDeltaSec < 0 ? 'positive' : 'caution'}">{paceDeltaSec > 0 ? '+' : ''}{paceDeltaSec} s{paceUnit(unitSystem)}</div>{/if}
     </div>
     <div class="stat-cell">
       <InfoLabel class="stat-cell-label" text="Elevation" tip="Total elevation gained, summed across every activity in the selected range." />
-      <div class="stat-cell-value-row"><span class="stat-cell-value mono">{Math.round(ascentM).toLocaleString()}</span><span class="stat-cell-unit">m gained</span></div>
+      <div class="stat-cell-value-row"><span class="stat-cell-value mono">{Math.round(toDisplayElevation(ascentM, unitSystem)).toLocaleString()}</span><span class="stat-cell-unit">{elevationUnit(unitSystem)} gained</span></div>
     </div>
   </div>
 
   <div class="panel">
     <div class="panel-head">
-      <InfoLabel class="panel-label" text="Weekly volume by sport" tip="Weekly training volume, stacked by sport, with a 3-week trailing mean overlay." />
+      <InfoLabel class="panel-label" text="Weekly volume by sport" tip="Running, cycling and swimming volume each week, stacked by sport. The dashed line is your 3-week average." />
       <div class="flex gap-4">
         <span class="panel-meta"><span class="zone-key-swatch" style="background: var(--sport-running); display: inline-block; margin-right: var(--space-2);"></span>Run · {toDisplayDistance(sumRunKm(current), unitSystem).toFixed(1)} {distanceUnit(unitSystem)}</span>
       </div>
@@ -217,7 +244,7 @@
     </div>
     <p class="chart-explainer">
       Each bar totals that week's training, split by sport; weeks with nothing logged are left out rather than drawn as an empty gap. The dashed
-      line is a 3-week trailing mean of the total, smoothing week-to-week noise so the underlying trend stands out.
+      line is your 3-week average, which smooths out week-to-week swings.
     </p>
   </div>
 
@@ -231,21 +258,17 @@
       <p class="panel-prose">Pace at a given heart rate, every run in this range — up-left is fitter.</p>
       <div class="mt-4"><EfficiencyScatter activities={current} {unitSystem} /></div>
       <p class="chart-explainer">
-        Each dot is one run: how fast you went (higher up the y-axis) against how hard your heart was working to get there (further right on the
-        x-axis) - so a dot up and to the left of the others means a faster pace for a lower heart rate that day, real aerobic fitness rather than
-        just a fast day. The line is the best straight-line fit through every run in range; r² (0 to 1) says how closely your runs actually follow
-        it - near 1 means a tight, predictable relationship between effort and pace, near 0 means a lot of run-to-run scatter. The badge on the
-        right compares your most recent run to what that line predicts for its heart rate: "improving" means it beat the trend (faster than
-        expected), "attention" means it fell short.
+        Each dot is one run: its pace against its average heart rate. Up and to the left means faster for a lower heart rate, a sign of aerobic
+        fitness. The line is the trend across your runs, and the label says whether your latest run sat above or below it.
       </p>
     </div>
     <div class="panel">
-      <span class="panel-label">Intensity distribution</span>
+      <InfoLabel class="panel-label" text="Intensity distribution" tip="Each column is one week's training time split across heart-rate zones 1-5. Weeks without heart-rate data are skipped." />
       <p class="panel-prose">Share of weekly time per zone.</p>
       <div class="mt-4"><IntensityStack activities={current} {numWeeks} /></div>
       <p class="chart-explainer">
         Each bar is one week's training time, split across the five heart-rate zones and normalised to 100% so the effort mix is comparable
-        week to week regardless of how much you trained. A polarized plan runs mostly Z1/Z2 with occasional Z4/Z5, not a flat middle.
+        week to week regardless of how much you trained. A polarised plan runs mostly Z1/Z2 with occasional Z4/Z5, not a flat middle.
       </p>
     </div>
     <div class="panel">
@@ -262,6 +285,21 @@
         Every run in range is resampled into real 1km splits from its raw distance stream - not read off the device's own laps, which vary by
         auto-lap distance - so this reflects every kilometre actually run. The dashed line marks the median split.
       </p>
+    </div>
+    <div class="panel">
+      <InfoLabel
+        class="panel-label"
+        text="Critical pace curve"
+        tip="Your critical pace curve: the fastest pace you held for each length of time from 1 to 60 minutes, anywhere in a run. It shows how your pace drops off as efforts get longer."
+      />
+      <p class="panel-prose">How fast you can hold a pace for 1 to 60 minutes straight — current {rangeLabel} vs. the {rangeLabel} before it.</p>
+      <div class="mt-4">
+        {#if curvesLoading}
+          <SkeletonChart height="180px" />
+        {:else}
+          <CriticalPaceCurve {curves} {unitSystem} {rangeLabel} />
+        {/if}
+      </div>
     </div>
     <div class="panel">
       <span class="panel-label">Distance histogram</span>

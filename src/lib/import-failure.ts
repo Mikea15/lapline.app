@@ -1,7 +1,8 @@
-// lib/import-failure.ts - the anonymous "a file failed to import" analytics
-// event (only sent when the user has turned analytics on). It says which
-// device maker wrote the file and a coarse error type, never the file's
-// name or contents, so fixes can go where files actually fail.
+// lib/import-failure.ts - why a file failed to import: a coarse error type,
+// the message shown for it, and the anonymous "a file failed to import"
+// analytics event (only sent when the user has turned analytics on), which
+// says which device maker wrote the file and the error type, never the
+// file's name or contents, so fixes can go where files actually fail.
 import { rewriteFit } from './fit-rewrite';
 
 export type ImportFailureReason =
@@ -78,4 +79,28 @@ export function fitFailureReason(bytes: Uint8Array, message: string): ImportFail
 export function gpxFailureReason(bytes: Uint8Array, message: string): ImportFailureReason {
   if (bytes.byteLength === 0) return 'empty';
   return /no track points/i.test(message) ? 'gpx_no_track' : 'gpx_parse_error';
+}
+
+export const GENERIC_IMPORT_ERROR = 'Something went wrong with this import. Try again, or send the file via About → Feedback.';
+
+/** What to tell the user about a failed file, in place of the raw parser error. */
+export function failureMessage(reason: ImportFailureReason): string {
+  switch (reason) {
+    case 'empty':
+      return 'This file is empty. Try exporting it again.';
+    case 'not_fit':
+      return "Not a workout file. Export the original .fit from your device's app.";
+    case 'corrupt_fit':
+      return 'This file is damaged or cut short. Try exporting it again.';
+    case 'no_workout_data':
+      return 'No workout in this file. It may be a settings or daily-health file.';
+    case 'gpx_no_track':
+      return 'No timed GPS track in this file. Try exporting it again.';
+    case 'gpx_parse_error':
+      return "This GPX file couldn't be read. Try exporting it again.";
+    case 'save_error':
+      return "Couldn't save this activity. Check your browser has free storage, then try again.";
+    case 'fit_parse_error':
+      return GENERIC_IMPORT_ERROR;
+  }
 }

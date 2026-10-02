@@ -299,20 +299,19 @@
 
 <div class="screen">
   {#if activities.length === 0}
-    <div class="panel empty-state">No activities imported yet.</div>
+    <div class="panel empty-state">No activities yet. Choose Sync to add your first.</div>
   {:else}
     <div class="stat-strip">
       <div class="stat-cell">
-        <InfoLabel class="stat-cell-label" text="Completed" tip="Sessions recorded in {monthLabel}." />
+        <InfoLabel class="stat-cell-label" text="Sessions" tip="Sessions recorded in {monthLabel}." />
         <div class="stat-cell-value-row">
           <span class="stat-cell-value mono">{monthSessionCount}</span>
-          <span class="stat-cell-unit">sessions</span>
         </div>
-        <div class="stat-cell-delta neutral">month to date</div>
+        <div class="stat-cell-delta neutral">{isCurrentMonth ? 'so far this month' : monthLabel}</div>
       </div>
 
       <div class="stat-cell">
-        <InfoLabel class="stat-cell-label" text="Time logged" tip="Total training time recorded in {monthLabel}, across all sports." />
+        <InfoLabel class="stat-cell-label" text="Time trained" tip="Total training time recorded in {monthLabel}, across all sports." />
         <div class="stat-cell-value-row">
           <span class="stat-cell-value mono">{Math.floor(monthHours)}:{pad2(Math.round((monthHours % 1) * 60))}</span>
           <span class="stat-cell-unit">h</span>
@@ -328,7 +327,7 @@
       </div>
 
       <div class="stat-cell">
-        <InfoLabel class="stat-cell-label" text="Month load" tip="Total training load (au) recorded in {monthLabel}." />
+        <InfoLabel class="stat-cell-label" text="Month load" tip="Training load for {monthLabel}: hours of running, cycling and swimming, weighted by sport." />
         <div class="stat-cell-value-row">
           <span class="stat-cell-value mono">{Math.round(monthLoad)}</span>
           <span class="stat-cell-unit">au</span>
@@ -478,11 +477,11 @@
                   <span class="cal-rollup-hours-unit mono">h</span>
                 </div>
                 <div class="cal-rollup-row mono">
-                  <span>{week.rollup.km.toFixed(1)} km</span>
+                  <span>{formatDistance(week.rollup.km, unitSystem, 1)}</span>
                   <span>{Math.round(week.rollup.loadAu)} au</span>
                 </div>
                 <div class="cal-rollup-row mono">
-                  <span>{week.rollup.avgLabel} avg</span>
+                  <span>{week.rollup.avgLabel} / session</span>
                   <span>{Math.round(week.rollup.calories)} kcal</span>
                 </div>
                 <div class="cal-rollup-sessions mono">{week.rollup.sessionCount} {week.rollup.sessionCount === 1 ? 'session' : 'sessions'}</div>
@@ -496,8 +495,8 @@
         {#each weekRows as week, weekIndex (week.days[0])}
           <div class="cal-wl-week" bind:this={weekListRowEls[weekIndex]}>
             <div class="cal-wl-week-head">
-              <span class="cal-wl-week-label mono">Week {week.rollup.gutterLabel}</span>
-              <span class="cal-wl-week-stats mono">{week.rollup.hoursLabel} h · {week.rollup.km.toFixed(1)} km · {Math.round(week.rollup.loadAu)} au · {week.rollup.sessionCount} {week.rollup.sessionCount === 1 ? 'session' : 'sessions'}</span>
+              <span class="cal-wl-week-label mono">Week of {week.rollup.gutterLabel}</span>
+              <span class="cal-wl-week-stats mono">{week.rollup.hoursLabel} h · {formatDistance(week.rollup.km, unitSystem, 1)} · {Math.round(week.rollup.loadAu)} au · {week.rollup.sessionCount} {week.rollup.sessionCount === 1 ? 'session' : 'sessions'}</span>
             </div>
             {#each week.dayCells as cell, dayIndex (cell.date)}
               <div class="cal-wl-day" class:cal-wl-day-today={cell.isToday} class:cal-wl-day-out={!cell.inMonth}>
@@ -562,6 +561,7 @@
 
 <style>
   .cal-panel {
+    container: cal / inline-size;
     padding: 0;
     overflow: hidden;
   }
@@ -627,7 +627,7 @@
     border: 1px solid var(--line-panel);
     border-radius: var(--radius);
     padding: var(--space-5);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    box-shadow: var(--shadow-pop);
   }
   .cal-picker-year-nav {
     display: flex;
@@ -668,7 +668,7 @@
   .cal-picker-month.active {
     background: var(--accent);
     border-color: var(--accent);
-    color: var(--bg-app);
+    color: var(--on-accent);
   }
   .cal-legend {
     margin-left: auto;
@@ -693,11 +693,11 @@
     overflow-x: auto;
   }
   .cal-grid-inner {
-    min-width: 1124px;
+    min-width: 860px;
   }
   .cal-week-row {
     display: grid;
-    grid-template-columns: 30px repeat(7, minmax(0, 1fr)) 172px;
+    grid-template-columns: 30px repeat(7, minmax(0, 1fr)) 188px;
     border-bottom: 1px solid var(--line-row);
   }
   .cal-head-row {
@@ -856,6 +856,8 @@
   }
   .cal-rollup-row {
     display: flex;
+    gap: var(--space-4);
+    white-space: nowrap;
     justify-content: space-between;
     font-size: var(--fs-xs);
     color: var(--ink-7);
@@ -875,7 +877,9 @@
   .cal-week-list {
     display: none;
   }
-  @media (max-width: 1080px) {
+  /* Switch on the panel's own width, not the window's - the sidebar takes
+     ~230px, so a 1200px window used to get a grid too wide for its panel. */
+  @container cal (max-width: 899px) {
     .cal-grid-wrap {
       display: none;
     }
@@ -899,7 +903,12 @@
     text-transform: uppercase;
     color: var(--ink-6);
   }
+  .cal-wl-week-label {
+    flex: none;
+    white-space: nowrap;
+  }
   .cal-wl-week-stats {
+    text-align: right;
     text-transform: none;
     letter-spacing: normal;
     color: var(--ink-5);

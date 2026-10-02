@@ -88,7 +88,7 @@
     if (!regression || points.length < 3) return null;
     const last = points[points.length - 1]!;
     const predicted = regression.slope * last.hr + regression.intercept;
-    return last.pace < predicted ? { text: 'improving', color: 'var(--accent)' } : { text: 'attention', color: 'var(--caution)' };
+    return last.pace < predicted ? { text: 'last run: above your trend', color: 'var(--accent)' } : { text: 'last run: below your trend', color: 'var(--caution)' };
   });
 
   let hoverIndex = $state<number | null>(null);
@@ -147,8 +147,7 @@
       </div>
     {/if}
     {#if regression}
-      <div class="scatter-footer">
-        <span class="mono">r² = {regression.r2.toFixed(2)}</span>
+      <div class="scatter-footer" title="r² = {regression.r2.toFixed(2)}: how closely your runs follow the trend line (1 = exactly)">
         {#if trendLabel}<span class="mono" style="margin-left: auto; color: {trendLabel.color};">{trendLabel.text}</span>{/if}
       </div>
     {/if}

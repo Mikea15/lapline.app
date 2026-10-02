@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import { fitManufacturer, fitFailureReason, gpxFailureReason } from '../import-failure';
+import { fitManufacturer, fitFailureReason, gpxFailureReason, failureMessage } from '../import-failure';
 
 const DEMO = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../public/demo');
 const ride = new Uint8Array(readFileSync(path.join(DEMO, 'sample-ride.fit')));
@@ -34,5 +34,14 @@ describe('gpxFailureReason', () => {
     expect(gpxFailureReason(new Uint8Array(3), 'no track points found (...)')).toBe('gpx_no_track');
     expect(gpxFailureReason(new Uint8Array(3), 'bad xml')).toBe('gpx_parse_error');
     expect(gpxFailureReason(new Uint8Array(0), 'file is empty')).toBe('empty');
+  });
+});
+
+describe('failureMessage', () => {
+  it('gives a plain message instead of the parser error', () => {
+    const notFit = failureMessage(fitFailureReason(new Uint8Array(20), 'x'));
+    expect(notFit).toMatch(/^Not a workout file/);
+    expect(notFit).not.toMatch(/header/i);
+    expect(failureMessage('save_error')).toMatch(/storage/);
   });
 });

@@ -23,8 +23,6 @@ export async function loadStubActivities(): Promise<ParsedActivity[]> {
 }
 
 function toDetail(pa: ParsedActivity, id: number, date: string): ActivityDetail {
-  let maxHr = 0;
-  for (const r of pa.records) if (r.hr > maxHr) maxHr = r.hr;
   return {
     ...pa.activity,
     id,
@@ -40,7 +38,6 @@ function toDetail(pa: ParsedActivity, id: number, date: string): ActivityDetail 
     perfCondition: pa.records.map((r) => r.perfCondition),
     lat: pa.records.map((r) => r.lat),
     lon: pa.records.map((r) => r.lon),
-    maxHr,
     laps: pa.laps,
     lengths: pa.lengths
   };
@@ -64,7 +61,7 @@ export function buildSyntheticHistory(stubs: ParsedActivity[], count: number): S
     const date = addDays(end, -i * 3);
     const detail = toDetail(source, id, date);
     details.set(id, detail);
-    const { t, hr, cadence, power, distance, temperature, altitude, speed, perfCondition, lat, lon, maxHr, laps, ...activity } = detail;
+    const { t, hr, cadence, power, distance, temperature, altitude, speed, perfCondition, lat, lon, laps, ...activity } = detail;
     activities.push(activity);
   }
   return {

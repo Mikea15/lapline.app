@@ -55,7 +55,6 @@ function detailFor(a: Activity, km: number, secPerKm: number): ActivityDetail {
     perfCondition: [null, null],
     lat: [null, null],
     lon: [null, null],
-    maxHr: 0,
     laps: [],
     lengths: []
   };

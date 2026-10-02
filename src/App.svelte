@@ -3,6 +3,7 @@
      not screens of their own (see design_handoff_sports_dashboard/README.md). -->
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { themeStore } from './lib/theme-store.svelte';
   import Icon from './components/Icon.svelte';
   import SettingsPanel from './components/SettingsPanel.svelte';
   import ImportPanel from './components/ImportPanel.svelte';
@@ -16,13 +17,13 @@
   import CalendarScreen from './components/screens/CalendarScreen.svelte';
   import TrendsScreen from './components/screens/TrendsScreen.svelte';
   import RecordsScreen from './components/screens/RecordsScreen.svelte';
-  import DateRangeSlider from './components/DateRangeSlider.svelte';
+  import RangeFilter from './components/RangeFilter.svelte';
   import { activitiesStore, fitFilesStore, importStore } from './lib/stores.svelte';
   import { formatSport } from './lib/sport-color';
   import { formatDateRangeShort, formatRelativeTime, todayStr, addDays, daysBetween } from './lib/date-utils';
   import { settingsStore } from './lib/stores.svelte';
   import { TODAY_LEDGER_SIZE } from './lib/today-ledger';
-  import { RANGE_PRESET_OPTIONS, rangePresetLabel, type RangePreset } from './lib/range-preset';
+  import { rangePresetLabel, type RangePreset } from './lib/range-preset';
   import type { Screen } from './lib/types';
   import { setAnalyticsEnabled, trackPageview, trackEvent } from './lib/analytics';
   import { fetchSampleFiles, countSampleActivities, removeSampleData } from './lib/sample-data';
@@ -35,6 +36,14 @@
   // default could meaningfully point at.
   type Preset = RangePreset | 'custom';
   const PRESET_DAYS: Record<Exclude<RangePreset, 'all'>, number> = { '7d': 7, '4w': 28, '12w': 84, '1y': 365 };
+
+  const RANGE_SUBLINE: Record<RangePreset, string> = {
+    '7d': 'Last 7 days',
+    '4w': 'Last 4 weeks',
+    '12w': 'Last 12 weeks',
+    '1y': 'Last year',
+    all: 'All time'
+  };
 
   function presetLabel(p: Preset): string {
     return p === 'custom' ? 'Custom' : rangePresetLabel(p);
@@ -89,7 +98,8 @@
       sampleError = null;
       await importStore.importFiles(await fetchSampleFiles());
     } catch (e) {
-      sampleError = `Couldn't load the sample data: ${e instanceof Error ? e.message : String(e)}`;
+      console.error(e);
+      sampleError = "Couldn't load the sample data. Check your connection, then try again.";
       showImport = false;
     }
   }
@@ -156,9 +166,9 @@
   });
   let historyMaxDate = $derived(todayStr());
 
-  // Global date range: a quick preset (rolling N days ending today, or the
-  // full imported history for 'all'), or a custom [start, end] the user
-  // drags into place - fully arbitrary, not pinned to today. `preset` alone
+  // Trends' date range, picked in its filter bar (RangeFilter): a
+  // quick preset (rolling N days ending today, or the full imported history
+  // for 'all'), or a custom [start, end] the user drags into place - fully arbitrary, not pinned to today. `preset` alone
   // drives the resolved window except while 'custom' is active, when the
   // dragged customStart/customEnd take over.
   let preset = $state<Preset>(settingsStore.getDefaultRangePreset());
@@ -169,20 +179,14 @@
   let rangeStart = $derived(
     preset === 'custom' ? customStart : preset === 'all' ? historyMinDate : addDays(rangeEnd, -(PRESET_DAYS[preset] - 1))
   );
-  let rangeDays = $derived(daysBetween(rangeStart, rangeEnd) + 1);
   let rangeLabel = $derived(preset === 'custom' ? formatDateRangeShort(rangeStart, rangeEnd) : presetLabel(preset));
 
-  // Seeds the custom slider from whatever window the active preset already
-  // resolved to, so switching to Custom doesn't jump the range around -
-  // read as plain values in this click handler, not inside an $effect, so
-  // there's no reactive dependency to worry about re-triggering.
-  function activateCustom() {
-    if (preset === 'custom') return;
-    customStart = rangeStart;
-    customEnd = rangeEnd;
-    preset = 'custom';
-    trackEvent('range_changed', { preset: 'custom' });
-  }
+  // Today has no range picker (it moved into the Trends filter
+  // bars), so its cards follow Settings > default range instead.
+  let todayPreset = $derived(settingsStore.getDefaultRangePreset());
+  let todayRangeDays = $derived(
+    todayPreset === 'all' ? daysBetween(historyMinDate, todayStr()) + 1 : PRESET_DAYS[todayPreset]
+  );
 
   // Screen changes and activity selection push real browser-history entries
   // (as a #hash, so a static host never needs to route it) so the browser's
@@ -242,6 +246,7 @@
   });
 
   onMount(async () => {
+    themeStore.init();
     setAnalyticsEnabled(settingsStore.getAnalyticsEnabled());
     // The landing page's "Try it with sample data" opens /app/?sample=1.
     // Loads the samples into an empty browser; with data already here the
@@ -308,11 +313,6 @@
     }
   }
 
-  function setRangePreset(next: RangePreset) {
-    preset = next;
-    trackEvent('range_changed', { preset: next });
-  }
-
   function backToActivityList() {
     activeActivityId = null;
     pushHash(hashFor('activity', null));
@@ -324,7 +324,7 @@
   let syncedLabel = $derived.by(() => {
     nowTick;
     const last = fitFilesStore.lastImportedAt;
-    return last ? `synced ${formatRelativeTime(last)}` : 'no imports yet';
+    return last ? `Last import ${formatRelativeTime(last)}` : 'no imports yet';
   });
 
   let activeActivity = $derived(activeActivityId !== null ? (activities.find((a) => a.id === activeActivityId) ?? null) : null);
@@ -367,7 +367,7 @@
   function screenSub(s: Screen): string {
     if (s === 'today') return new Date().toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
     if (s === 'activity') {
-      if (!activeActivity) return `${activities.length} imported ${activities.length === 1 ? 'session' : 'sessions'}`;
+      if (!activeActivity) return `${activities.length} ${activities.length === 1 ? 'activity' : 'activities'}`;
       // No subline once an activity is open - the content's own eyebrow
       // right below already carries the sport/date/time/distance, so
       // there's nothing left to say here that wouldn't just repeat it.
@@ -378,8 +378,9 @@
     // nothing left for the shared header subline to add.
     if (s === 'calendar') return '';
     if (s === 'trends') {
-      const rangeText = preset === 'custom' ? rangeLabel : preset === 'all' ? 'All time' : `Rolling ${preset}`;
-      return `${rangeText} · ${activities.length} sessions logged`;
+      const rangeText = preset === 'custom' ? rangeLabel : RANGE_SUBLINE[preset];
+      const n = activities.filter((a) => a.date >= rangeStart && a.date <= rangeEnd).length;
+      return `${rangeText} · ${n} ${n === 1 ? 'activity' : 'activities'}`;
     }
     return 'Lifetime bests and progression, all sports';
   }
@@ -387,12 +388,21 @@
 
 <svelte:window onkeydown={handleGlobalKeydown} />
 
+{#snippet rangeFilter()}
+  <RangeFilter
+    bind:preset
+    bind:customStart
+    bind:customEnd
+    {rangeStart}
+    {rangeEnd}
+    historyMin={historyMinDate}
+    historyMax={historyMaxDate}
+  />
+{/snippet}
+
 {#snippet toolButtons()}
   <button class="icon-btn" onclick={() => openTool(() => (showSettings = true), 'settings')} title="Settings" aria-label="Settings">
     <Icon name="settings" />
-  </button>
-  <button class="icon-btn" class:spotlight={highlightImport} onclick={() => openTool(() => (showImport = true), 'import')} title="Import .fit/.gpx files" aria-label="Import">
-    <Icon name="import" />
   </button>
   <button class="icon-btn" onclick={() => openTool(() => (showAbout = true), 'about')} title="About" aria-label="About">
     <Icon name="info" />
@@ -459,30 +469,35 @@
         {@render toolButtons()}
       </div>
       <div class="header-right">
-        {#if screen !== 'activity' && screen !== 'calendar'}
-          <div class="segmented" role="tablist" aria-label="Range">
-            {#each RANGE_PRESET_OPTIONS as r (r)}
-              <button class:active={preset === r} onclick={() => setRangePreset(r)}>{presetLabel(r)}</button>
-            {/each}
-            <button class:active={preset === 'custom'} onclick={activateCustom}>Custom</button>
-          </div>
-        {/if}
         <span class="synced-label">{syncedLabel}</span>
+        <button
+          type="button"
+          class="icon-btn theme-btn"
+          onclick={() => themeStore.toggle()}
+          title={themeStore.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+          aria-label={themeStore.theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+        >
+          <Icon name={themeStore.theme === 'dark' ? 'sun' : 'moon'} />
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary btn-sm sync-btn"
+          class:spotlight={highlightImport}
+          onclick={() => openTool(() => (showImport = true), 'import')}
+          title="Sync from your watch, or import .fit/.gpx files"
+        >
+          <Icon name="import" />
+          Sync
+        </button>
       </div>
     </header>
-
-    {#if screen !== 'activity' && screen !== 'calendar' && preset === 'custom'}
-      <div class="custom-range-row">
-        <DateRangeSlider min={historyMinDate} max={historyMaxDate} bind:start={customStart} bind:end={customEnd} />
-      </div>
-    {/if}
 
     {#if sampleCount > 0 || sampleError}
       <div class="notice-banner" role="status">
         {#if sampleError}
           <span>{sampleError}</span>
         {:else}
-          <span>You're looking at <strong>sample data</strong>: {sampleCount} anonymised {sampleCount === 1 ? 'session' : 'sessions'}. Import your own files any time.</span>
+          <span>You're looking at <strong>sample data</strong>: {sampleCount} anonymised {sampleCount === 1 ? 'activity' : 'activities'}. Remove it before importing your own, so it doesn't mix with your training.</span>
           <button type="button" class="btn btn-secondary" onclick={removeSamples} disabled={removingSamples}>
             {removingSamples ? 'Removing…' : 'Remove sample data'}
           </button>
@@ -505,17 +520,17 @@
     {/if}
 
     {#if !initialized}
-      <div class="screen"><div class="panel empty-state">Initializing database…</div></div>
+      <div class="screen"><div class="panel empty-state">Loading your training…</div></div>
     {:else if screen === 'today'}
-      <TodayScreen {rangeDays} {rangeLabel} onSelectActivity={openActivity} />
+      <TodayScreen rangeDays={todayRangeDays} rangeLabel={presetLabel(todayPreset)} onSelectActivity={openActivity} />
     {:else if screen === 'activity'}
       <ActivityScreen activityId={activeActivityId} onSelectActivity={openActivity} onBack={backToActivityList} />
     {:else if screen === 'calendar'}
       <CalendarScreen onSelectActivity={openActivity} />
     {:else if screen === 'trends'}
-      <TrendsScreen startDate={rangeStart} endDate={rangeEnd} />
+      <TrendsScreen startDate={rangeStart} endDate={rangeEnd} {rangeLabel} {rangeFilter} />
     {:else if screen === 'records'}
-      <RecordsScreen startDate={rangeStart} endDate={rangeEnd} {rangeLabel} onSelectActivity={openActivity} />
+      <RecordsScreen onSelectActivity={openActivity} />
     {/if}
   </div>
 

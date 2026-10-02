@@ -1,10 +1,12 @@
-<!-- RunVolumeCard.svelte - Today's running distance over the header's range,
+<!-- RunVolumeCard.svelte - Today's running distance over the default range,
      with bars per day, week or month (by range length - lib/today-kpis.ts),
      a dotted average line, and the peak bar picked out. -->
 <script lang="ts">
   import KpiCard from './KpiCard.svelte';
   import type { Activity } from '../../lib/types';
   import { runVolumeBars } from '../../lib/today-kpis';
+  import { settingsStore } from '../../lib/stores.svelte';
+  import { toDisplayDistance, distanceUnit } from '../../lib/units';
 
   interface Props {
     activities: Activity[];
@@ -20,6 +22,9 @@
   let max = $derived(Math.max(0, ...bars.map((b) => b.km)));
   let peakIdx = $derived(max > 0 ? bars.findIndex((b) => b.km === max) : -1);
   let avg = $derived(bars.length > 0 ? totalKm / bars.length : 0);
+  let unitSystem = $derived(settingsStore.getUnitSystem());
+  let unit = $derived(distanceUnit(unitSystem));
+  const dist = (km: number) => toDisplayDistance(km, unitSystem).toFixed(1);
   const PER: Record<string, string> = { day: 'day', week: 'wk', month: 'mo' };
 
   let caption = $derived.by(() => {
@@ -31,15 +36,15 @@
 
 <KpiCard
   label="Run volume"
-  tip="Total running distance over the selected range (the header's range filter, top right), split into bars by day, week or month. The dotted line is the average bar."
+  tip="Total running distance over your default range (Settings > Default time range), split into bars by day, week or month. The dotted line is the average bar."
   edge="var(--sport-running)"
   meta={rangeLabel}
-  chip={peakIdx < 0 ? null : { text: `${avg.toFixed(1)} km/${PER[volume.bucket]}`, tone: 'neutral' }}
+  chip={peakIdx < 0 ? null : { text: `${dist(avg)} ${unit}/${PER[volume.bucket]}`, tone: 'neutral' }}
   {caption}
 >
   <div class="kpi-value-row">
-    <span class="kpi-value">{totalKm.toFixed(1)}</span>
-    <span class="kpi-unit">km</span>
+    <span class="kpi-value">{dist(totalKm)}</span>
+    <span class="kpi-unit">{unit}</span>
   </div>
   <div class="chart">
     <div class="bars">
@@ -52,7 +57,7 @@
           class:peak={i === peakIdx}
           class:current={bar.current && i !== peakIdx}
           style="height: {max > 0 ? Math.max(bar.km > 0 ? 4 : 0, (bar.km / max) * 100) : 0}%;"
-          title="{bar.title}: {bar.km.toFixed(1)} km"
+          title="{bar.title}: {dist(bar.km)} {unit}"
         ></span>
       {/each}
     </div>

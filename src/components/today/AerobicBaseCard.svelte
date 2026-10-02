@@ -1,6 +1,6 @@
-<!-- AerobicBaseCard.svelte - Today's share of training time at or above HR
-     zone 2 over the header's range: the figure, the full zone split with the
-     z1/z2+ divide marked, and the change in points against the range before. -->
+<!-- AerobicBaseCard.svelte - Today's share of training time in HR zone 2
+     over the default range: the figure, the full zone split with zone 2
+     picked out, and the change in points against the range before. -->
 <script lang="ts">
   import KpiCard from './KpiCard.svelte';
   import { ZONE_COLORS } from '../../lib/hr-zones';
@@ -14,16 +14,17 @@
 
   let { zones, prevZones, rangeLabel }: Props = $props();
 
-  function z2PlusPct(z: number[]): number | null {
+  function z2Pct(z: number[]): number | null {
     const total = z.reduce((s, v) => s + v, 0);
-    return total > 0 ? ((total - z[0]!) / total) * 100 : null;
+    return total > 0 ? (z[1]! / total) * 100 : null;
   }
 
   let total = $derived(zones.reduce((s, v) => s + v, 0));
-  let pct = $derived(z2PlusPct(zones));
-  let prevPct = $derived(z2PlusPct(prevZones));
+  let pct = $derived(z2Pct(zones));
+  let prevPct = $derived(z2Pct(prevZones));
   let segments = $derived(zones.map((v, i) => ({ zone: i + 1, share: total > 0 ? (v / total) * 100 : 0, color: ZONE_COLORS[i]! })));
-  let easyShare = $derived(segments[0]!.share);
+  let belowShare = $derived(segments[0]!.share);
+  let aboveShare = $derived(segments.slice(2).reduce((s, seg) => s + seg.share, 0));
 
   let deltaPts = $derived(pct !== null && prevPct !== null ? Math.round(pct - prevPct) : null);
   let chip = $derived(
@@ -33,7 +34,7 @@
 
 <KpiCard
   label="Aerobic base"
-  tip="Share of training time over the selected range at or above heart-rate zone 2. The bar is the full zone split, with the line where zone 1 ends."
+  tip="Share of your training time in heart-rate zone 2, the steady, conversational effort that builds endurance. The bar shows your full zone split."
   edge="var(--positive)"
   meta="time in zone"
   {chip}
@@ -41,23 +42,20 @@
 >
   <div class="kpi-value-row">
     <span class="kpi-value">{pct !== null ? Math.round(pct) : '—'}</span>
-    <span class="kpi-unit">% in z2+</span>
+    <span class="kpi-unit">% in z2</span>
   </div>
   {#if pct !== null}
     <div class="split">
       <div class="bar">
         {#each segments as seg (seg.zone)}
           {#if seg.share > 0}
-            <span class="seg mono" style="flex: {seg.share} 0 0; background: {seg.color};">{seg.share >= 9 ? `z${seg.zone}` : ''}</span>
+            <span class="seg mono" class:base={seg.zone === 2} style="flex: {seg.share} 0 0; background: {seg.color};">{seg.share >= 9 ? `z${seg.zone}` : ''}</span>
           {/if}
         {/each}
-        {#if easyShare > 0 && easyShare < 100}
-          <span class="divide" style="left: {easyShare}%;"></span>
-        {/if}
       </div>
       <div class="legend mono">
-        <span class="easy">easy {Math.round(easyShare)}%</span>
-        <span class="hard">◂ z2+ {Math.round(pct)}% ▸</span>
+        <span class="other">z1 {Math.round(belowShare)}%</span>
+        <span class="other">z3-5 {Math.round(aboveShare)}%</span>
       </div>
     </div>
   {/if}
@@ -83,28 +81,20 @@
     border-radius: 1px;
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
-    color: var(--bg-app);
+    color: var(--on-accent);
     overflow: hidden;
+    opacity: 0.35;
   }
-  .divide {
-    position: absolute;
-    top: -3px;
-    bottom: -3px;
-    width: 2px;
-    margin-left: -1px;
-    background: var(--ink-1);
-    border-radius: 1px;
+  /* Zone 2 is the figure; the other zones stay as context. */
+  .seg.base {
+    opacity: 1;
   }
   .legend {
     display: flex;
     justify-content: space-between;
     font-size: var(--fs-xs);
   }
-  .easy {
+  .other {
     color: var(--ink-6);
-  }
-  .hard {
-    color: var(--ink-2);
-    font-weight: var(--fw-semibold);
   }
 </style>

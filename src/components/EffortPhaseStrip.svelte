@@ -5,7 +5,7 @@
      time axis above it. -->
 <script lang="ts">
   import { EFFORT_PHASE_LABELS, type EffortPhase } from '../lib/effort-phases';
-  import { formatPaceBare, type UnitSystem } from '../lib/units';
+  import { formatPaceBare, formatDistance, type UnitSystem } from '../lib/units';
 
   interface Props {
     phases: EffortPhase[];
@@ -25,9 +25,9 @@
       case 'warmup':
         return `HR ${Math.round(p.avgHR)} · pace ${formatPaceBare(p.avgPaceMinPerKm, unitSystem)}`;
       case 'steady': {
-        const km = p.distanceKm !== undefined ? p.distanceKm.toFixed(1) : '';
+        const dist = p.distanceKm !== undefined ? formatDistance(p.distanceKm, unitSystem, 1) : '';
         const spread = p.paceStdDevSec !== undefined ? ` ±${Math.round(p.paceStdDevSec)}s` : '';
-        return `${km} km at ${formatPaceBare(p.avgPaceMinPerKm, unitSystem)}${spread}`;
+        return `${dist} at ${formatPaceBare(p.avgPaceMinPerKm, unitSystem)}${spread}`;
       }
       case 'drift': {
         const delta = p.deltaHR !== undefined ? `${p.deltaHR >= 0 ? '+' : ''}${Math.round(p.deltaHR)} bpm` : '';

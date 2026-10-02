@@ -495,7 +495,7 @@
     <ActivityFilterBar bind:activityTypes={activityTypeFilter} />
     <div class="panel activities-list-panel">
       {#if allActivities.length === 0}
-        <div class="empty-state">No activities imported yet.</div>
+        <div class="empty-state">No activities yet. Choose Sync to add your first.</div>
       {:else if sortedActivities.length === 0}
         <div class="empty-state">No activities match this filter.</div>
       {:else}
@@ -575,7 +575,7 @@
           {/if}
         </div>
         <div class="tape-hero-list mono">
-          <div class="tape-hero-list-row"><span>Elapsed</span><span>{formatClock(detail.durationMin * 60)}</span></div>
+          <div class="tape-hero-list-row"><span>Elapsed</span><span>{formatClock((detail.elapsedDurationMin || detail.durationMin) * 60)}</span></div>
           {#if !isPoolSwim}
             <div class="tape-hero-list-row">
               <span>Ascent</span>
@@ -583,7 +583,7 @@
             </div>
           {/if}
           {#if detail.aerobicTrainingEffect > 0}
-            <div class="tape-hero-list-row"><span>Aerobic TE est.</span><span>{detail.aerobicTrainingEffect.toFixed(1)} · {trainingEffectLabel(detail.aerobicTrainingEffect)}</span></div>
+            <div class="tape-hero-list-row"><span><InfoLabel text="Aerobic training effect est." tip="Your watch's estimate of how much this session improved your fitness, from 0 to 5. Aerobic is endurance; anaerobic is short, hard efforts." /></span><span>{detail.aerobicTrainingEffect.toFixed(1)} · {trainingEffectLabel(detail.aerobicTrainingEffect)}</span></div>
           {/if}
           {#if conditionsText}
             <div class="tape-hero-list-row"><span>Conditions</span><span>{conditionsText}</span></div>
@@ -618,7 +618,7 @@
       {#if detail.t.length > 0}
         <div class="panel timeline-panel" class:stuck={timelineStuck} class:sizing={timelinePanelH !== null} style:height={timelinePanelH} style:margin-bottom={timelineMarginB} bind:this={timelineEl}>
           <div class="panel-head">
-            <span class="panel-label">Timeline{hasHrStream ? ' · bar height & hue = heart rate' : ''}{hasSpeed ? ' · white line = pace' : ''}</span>
+            <span class="panel-label">Timeline{hasHrStream ? ' · bar height & hue = heart rate' : ''}{hasSpeed ? ' · line = pace' : ''}</span>
           </div>
           <div class="mt-4">
             <EffortTape
@@ -648,7 +648,7 @@
       {#if showKmTiles}
         <div class="panel">
           <div class="panel-head">
-            <InfoLabel class="panel-label" text="Laps" tip={isCycling ? "Each tile: real per-lap HR trace, speed vs the activity average, and the real HR-zone time mix for that lap." : "Each tile: real per-lap HR trace, pace vs the activity average, and the real HR-zone time mix for that lap."} />
+            <InfoLabel class="panel-label" text="Laps" tip="Each tile is one lap: its heart-rate trace, {isCycling ? 'speed' : 'pace'} against your average for the whole activity, and its time in each zone." />
             <span class="panel-meta"
               >each tile: HR trace · current {isCycling ? 'speed' : 'pace'} vs average: {avgPaceMinPerKm > 0
                 ? isCycling
@@ -677,7 +677,7 @@
       {#if isPoolSwimWithLengths}
         <div class="panel">
           <div class="panel-head">
-            <InfoLabel class="panel-label" text="Length by length" tip="Each tile: real per-length HR trace, pace/100m vs the session average, real SWOLF, and the real HR-zone time mix for that length. Consecutive rest lengths are merged into one Rest tile." />
+            <InfoLabel class="panel-label" text="Length by length" tip="Each tile is one length: its heart-rate trace, pace per 100 m against your session average, SWOLF (seconds plus strokes for the length, lower is more efficient) and its zone mix. Rest lengths in a row merge into one Rest tile." />
             <span class="panel-meta">each tile: HR trace · current pace vs average: {avgSwimPaceSecPer100 > 0 ? formatSecPer100Bare(avgSwimPaceSecPer100) : '—'} · SWOLF · zone mix</span>
           </div>
           <div class="mt-4">
@@ -753,7 +753,7 @@
               <div class="stream-rows mt-4">
                 {#if hasHrStream}
                   <div class="stream-row">
-                    <span class="stream-row-label mono">Heart Rate</span>
+                    <span class="stream-row-label mono">Heart rate</span>
                     <StreamChart t={detail.t} values={heartRateStream} formatTime={formatClock} formatValue={(v) => `${Math.round(v)} bpm`} color="var(--alert)" bind:syncSeconds={chartSyncX} />
                   </div>
                 {/if}
@@ -765,7 +765,7 @@
                 {/if}
                 {#if hasPerfCondition}
                   <div class="stream-row">
-                    <InfoLabel class="stream-row-label mono" text="Performance Condition" tip="Garmin's own real-time estimate of how you're performing relative to your baseline fitness for the current heart rate - positive is better than usual, negative is worse." />
+                    <InfoLabel class="stream-row-label mono" text="Performance condition" tip="Garmin's own real-time estimate of how you're performing relative to your baseline fitness for the current heart rate - positive is better than usual, negative is worse." />
                     <StreamChart t={detail.t} values={detail.perfCondition} formatTime={formatClock} formatValue={(v) => `${v >= 0 ? '+' : ''}${v}`} color="var(--positive)" zeroLine bind:syncSeconds={chartSyncX} />
                   </div>
                 {/if}
@@ -920,7 +920,7 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-8);
-    background: rgba(12, 15, 19, 0.9);
+    background: var(--tooltip-bg);
     border: 1px solid var(--line-panel);
     border-radius: var(--radius);
     padding: var(--space-5) var(--space-5) var(--space-4);
@@ -1006,6 +1006,6 @@
      underneath reads as passing behind it rather than butting into a hard
      edge. */
   .timeline-panel.stuck {
-    box-shadow: 0 16px 28px -6px rgba(0, 0, 0, 0.9);
+    box-shadow: 0 16px 28px -6px var(--shadow-sticky);
   }
 </style>

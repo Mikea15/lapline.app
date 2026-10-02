@@ -58,8 +58,8 @@ describe('createBackupZip / readBackupZip', () => {
     expect(restored.files.map((f) => f.filename)).toEqual(['run.fit', 'run.fit']);
     expect(Array.from(restored.files[0]!.data)).toEqual(Array.from(fitA));
     expect(Array.from(restored.files[1]!.data)).toEqual(Array.from(gpxB));
-    expect(restored.manifest.settings).toEqual({ unit_system: 'imperial' });
-    expect(restored.manifest.appVersion).toBe('1.3.0');
+    expect(restored.manifest!.settings).toEqual({ unit_system: 'imperial' });
+    expect(restored.manifest!.appVersion).toBe('1.3.0');
     expect(restored.missing).toEqual([]);
   });
 
@@ -71,12 +71,19 @@ describe('createBackupZip / readBackupZip', () => {
     expect(restored.missing).toEqual(['gone.fit']);
   });
 
-  it('rejects a zip with no manifest', async () => {
-    await expect(readBackupZip(zipSync({ 'other.txt': strToU8('hi') }))).rejects.toThrow('no lapline-backup.json');
+  it('reads a zip of workout files with no manifest (e.g. a Garmin export)', async () => {
+    const zipped = zipSync({ 'Activities/run.FIT': fitA, 'ride.gpx': gpxB, '__MACOSX/Activities/._run.FIT': fitA, 'notes.txt': strToU8('hi') });
+    const restored = await readBackupZip(zipped);
+    expect(restored.manifest).toBeNull();
+    expect(restored.files.map((f) => f.filename).sort()).toEqual(['ride.gpx', 'run.FIT']);
+  });
+
+  it('rejects a zip with no manifest and no workouts', async () => {
+    await expect(readBackupZip(zipSync({ 'other.txt': strToU8('hi') }))).rejects.toThrow('no workouts or Lapline backup');
   });
 
   it('rejects bytes that are not a zip', async () => {
-    await expect(readBackupZip(strToU8('not a zip'))).rejects.toThrow("isn't a readable zip");
+    await expect(readBackupZip(strToU8('not a zip'))).rejects.toThrow("isn't a readable .zip");
   });
 });
 

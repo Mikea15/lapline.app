@@ -13,12 +13,20 @@
   import { setAnalyticsEnabled } from '../lib/analytics';
   import type { Sex } from '../lib/today-kpis';
   import Icon from './Icon.svelte';
+  import { themeStore } from '../lib/theme-store.svelte';
+  import type { ThemePref } from '../lib/theme';
 
   interface Props {
     onClose?: () => void;
   }
 
   let { onClose }: Props = $props();
+
+  const THEME_OPTIONS: [ThemePref, string][] = [
+    ['dark', 'Dark'],
+    ['light', 'Light'],
+    ['auto', 'Auto']
+  ];
 
   let unlinkedActivityCount = $derived(activitiesStore.all.filter((a) => a.sourceFileId === undefined).length);
 
@@ -49,7 +57,8 @@
         : '';
       backupMessage = { tone: out.unlinkedActivityCount > 0 ? 'muted' : 'good', text: `Saved ${out.filename}: ${out.fileCount} ${out.fileCount === 1 ? 'file' : 'files'} plus your settings.${skipped}` };
     } catch (e) {
-      backupMessage = { tone: 'error', text: `Export failed: ${e instanceof Error ? e.message : String(e)}` };
+      console.error(e);
+      backupMessage = { tone: 'error', text: 'Export failed. Check your browser has free storage space, then try again.' };
     }
   }
 
@@ -110,37 +119,9 @@
     await settingsStore.save({ weather_lookup_enabled: String(next) });
   }
 
-  // Committed value (used for display/defaults); maxHrInput is the live
-  // field text, which can transiently hold an invalid draft the committed
-  // value never sees - saves happen on blur, not keystroke-by-keystroke.
-  let maxHr = $state('');
-  let maxHrInput = $state<string | number>('');
-  let maxHrError = $state('');
-
-  async function commitMaxHr() {
-    // bind:value on a number input yields a number (or '' when empty), not
-    // always a string, so String(...) first rather than calling .trim() on
-    // whatever type it happens to be.
-    const raw = String(maxHrInput ?? '').trim();
-    if (raw === '') {
-      maxHrError = '';
-      maxHr = '';
-      await settingsStore.save({ max_hr: '' });
-      return;
-    }
-    const v = parseInt(raw, 10);
-    if (isNaN(v) || v < 30 || v > 250) {
-      maxHrError = 'Enter a number between 30 and 250, or leave blank for auto.';
-      return;
-    }
-    maxHrError = '';
-    maxHr = String(v);
-    maxHrInput = String(v);
-    await settingsStore.save({ max_hr: String(v) });
-  }
-
   // Birth year and sex only pick the age/sex row of Today's VO2max rating
-  // bands. Same draft/commit-on-blur pattern as max HR above.
+  // bands. Committed value (used for display/defaults) plus the live field
+  // text, which can hold an invalid draft - saves happen on blur.
   let birthYear = $state('');
   let birthYearInput = $state<string | number>('');
   let birthYearError = $state('');
@@ -171,13 +152,11 @@
     await settingsStore.save({ sex: next ?? '' });
   }
 
-  function handleMaxHrKeydown(e: KeyboardEvent) {
+  function handleNumberKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
   }
 
   $effect(() => {
-    maxHr = settingsStore.all.max_hr || '';
-    maxHrInput = maxHr;
     birthYear = settingsStore.all.birth_year || '';
     birthYearInput = birthYear;
     sex = settingsStore.getSex();
@@ -198,7 +177,7 @@
     { id: 'training', label: 'Training' }
   ];
 
-  type RowId = 'units' | 'defaultRange' | 'textSize' | 'analytics' | 'locationLookup' | 'weatherLookup' | 'maxHr' | 'birthYear' | 'sex';
+  type RowId = 'units' | 'theme' | 'defaultRange' | 'textSize' | 'analytics' | 'locationLookup' | 'weatherLookup' | 'birthYear' | 'sex';
   interface Row {
     id: RowId;
     section: SectionId;
@@ -214,16 +193,25 @@
       id: 'units',
       section: 'display',
       name: 'Measurement units',
-      desc: "Distance, elevation and body mass across the whole app. Data entry stays in metric.",
+      desc: "Distance, pace, speed, elevation and temperature across the whole app.",
       valueLabel: unitSystem === 'metric' ? 'Metric' : 'Imperial',
       defaultLabel: 'Metric',
       isDefault: unitSystem === 'metric'
     },
     {
+      id: 'theme',
+      section: 'display',
+      name: 'Theme',
+      desc: "Dark, light, or Auto to match your device. The sun/moon button next to Sync switches it too.",
+      valueLabel: THEME_OPTIONS.find(([t]) => t === themeStore.pref)![1],
+      defaultLabel: 'Dark',
+      isDefault: themeStore.pref === 'dark'
+    },
+    {
       id: 'defaultRange',
       section: 'display',
       name: 'Default time range',
-      desc: 'Which quick range Today, Trends, and Records open to on a fresh load of the app.',
+      desc: "The range Today always shows, and the one Trends opens to.",
       valueLabel: rangePresetLabel(defaultRangePreset),
       defaultLabel: rangePresetLabel('1y'),
       isDefault: defaultRangePreset === '1y'
@@ -263,15 +251,6 @@
       valueLabel: weatherLookupEnabled ? 'On' : 'Off',
       defaultLabel: 'Off',
       isDefault: !weatherLookupEnabled
-    },
-    {
-      id: 'maxHr',
-      section: 'training',
-      name: 'Maximum heart rate',
-      desc: 'Upper anchor for heart-rate zone boundaries and chart scaling. Leave blank to auto-calculate from activity data.',
-      valueLabel: maxHr ? `${maxHr} bpm` : 'Auto',
-      defaultLabel: 'Auto',
-      isDefault: maxHr === ''
     },
     {
       id: 'birthYear',
@@ -322,6 +301,9 @@
       case 'defaultRange':
         await setDefaultRangePreset('1y');
         break;
+      case 'theme':
+        themeStore.reset();
+        break;
       case 'textSize':
         await setTextSize('default');
         break;
@@ -333,11 +315,6 @@
         break;
       case 'weatherLookup':
         await setWeatherLookupPref(false);
-        break;
-      case 'maxHr':
-        maxHrInput = '';
-        maxHrError = '';
-        await commitMaxHr();
         break;
       case 'birthYear':
         birthYearInput = '';
@@ -390,6 +367,7 @@
     resetting = true;
     try {
       await resetAllStores();
+      themeStore.reset();
       showResetConfirm = false;
       resetDone = true;
       setTimeout(() => (resetDone = false), 3000);
@@ -424,7 +402,7 @@
     <div class="settings-header-actions">
       <!-- btn-ghost: same chrome as the .icon-btn beside it, so the two header
            actions read as one pair. -->
-      <button class="btn btn-ghost btn-sm" onclick={() => (showResetSettingsConfirm = true)} disabled={dirtyCount === 0}>Reset all</button>
+      <button class="btn btn-ghost btn-sm" onclick={() => (showResetSettingsConfirm = true)} disabled={dirtyCount === 0}>Reset settings</button>
       <button class="icon-btn" onclick={() => onClose?.()} aria-label="Close"><Icon name="close" size={14} /></button>
     </div>
   </div>
@@ -478,6 +456,12 @@
                       <button class:active={defaultRangePreset === p} onclick={() => setDefaultRangePreset(p)}>{rangePresetLabel(p)}</button>
                     {/each}
                   </div>
+                {:else if row.id === 'theme'}
+                  <div class="segmented">
+                    {#each THEME_OPTIONS as [t, label] (t)}
+                      <button class:active={themeStore.pref === t} onclick={() => themeStore.set(t)}>{label}</button>
+                    {/each}
+                  </div>
                 {:else if row.id === 'textSize'}
                   <div class="segmented">
                     {#each TEXT_SIZE_OPTIONS as [s, label] (s)}
@@ -499,30 +483,15 @@
                     <button class:active={!weatherLookupEnabled} onclick={() => setWeatherLookupPref(false)}>Off</button>
                     <button class:active={weatherLookupEnabled} onclick={() => setWeatherLookupPref(true)}>On</button>
                   </div>
-                {:else if row.id === 'maxHr'}
-                  <div class="settings-maxhr">
-                    <input
-                      type="number"
-                      min="30"
-                      max="250"
-                      bind:value={maxHrInput}
-                      onblur={commitMaxHr}
-                      onkeydown={handleMaxHrKeydown}
-                      placeholder="Auto"
-                      aria-label="Maximum heart rate in beats per minute"
-                      aria-invalid={maxHrError ? 'true' : undefined}
-                    />
-                    <span class="settings-maxhr-unit">bpm</span>
-                  </div>
                 {:else if row.id === 'birthYear'}
-                  <div class="settings-maxhr">
+                  <div class="settings-number">
                     <input
                       type="number"
                       min={THIS_YEAR - 100}
                       max={THIS_YEAR - 10}
                       bind:value={birthYearInput}
                       onblur={commitBirthYear}
-                      onkeydown={handleMaxHrKeydown}
+                      onkeydown={handleNumberKeydown}
                       placeholder="—"
                       aria-label="Birth year"
                       aria-invalid={birthYearError ? 'true' : undefined}
@@ -540,9 +509,7 @@
                 <Icon name="undo" size={13} />
               </button>
             </div>
-            {#if row.id === 'maxHr' && maxHrError}
-              <p class="settings-row-error">{maxHrError}</p>
-            {:else if row.id === 'birthYear' && birthYearError}
+            {#if row.id === 'birthYear' && birthYearError}
               <p class="settings-row-error">{birthYearError}</p>
             {/if}
           {/each}
@@ -587,26 +554,25 @@
     <div class="card mt-4">
       <span class="section-title">Stored activity files</span>
       <p style="margin: var(--space-3) 0 var(--space-7); color: var(--ink-secondary); font-size: var(--fs-md);">
-        Every imported .fit or .gpx file's raw bytes are kept in this browser, not just the parsed result.
-        That means a future fix to how this app reads that data (like a cadence-scaling bug) can be re-applied
-        to your whole history by re-parsing the stored files — no re-uploading needed.
+        Lapline keeps a copy of every file you import. When we improve how files are read, apply the fix to your
+        whole history here. No need to import anything again.
       </p>
       <div class="flex justify-between items-center" style="font-size: var(--fs-md); color: var(--ink-muted);">
         <span>{fitFilesStore.count} {fitFilesStore.count === 1 ? 'file' : 'files'} stored · {formatBytes(fitFilesStore.totalBytes)}</span>
         <button class="btn btn-secondary btn-sm" onclick={handleReparse} disabled={fitFilesStore.reparsing || fitFilesStore.count === 0}>
-          {fitFilesStore.reparsing ? `Re-parsing ${fitFilesStore.reparseProgress?.done ?? 0}/${fitFilesStore.reparseProgress?.total ?? fitFilesStore.count}…` : 'Re-parse stored files'}
+          {fitFilesStore.reparsing ? `Re-reading ${fitFilesStore.reparseProgress?.done ?? 0}/${fitFilesStore.reparseProgress?.total ?? fitFilesStore.count}…` : 'Re-read all files'}
         </button>
       </div>
       {#if unlinkedActivityCount > 0}
         <p style="margin: var(--space-5) 0 0; font-size: var(--fs-base); color: var(--ink-muted);">
           {unlinkedActivityCount} {unlinkedActivityCount === 1 ? 'activity was' : 'activities were'} imported before this
-          feature existed and {unlinkedActivityCount === 1 ? "isn't" : "aren't"} re-parseable — re-import
+          feature existed and {unlinkedActivityCount === 1 ? "isn't" : "aren't"} covered — import
           {unlinkedActivityCount === 1 ? 'it' : 'them'} once to enable this for {unlinkedActivityCount === 1 ? 'it' : 'them'}.
         </p>
       {/if}
       {#if fitFilesStore.reparseResult}
         <p style="margin: var(--space-5) 0 0; font-size: var(--fs-md); color: {fitFilesStore.reparseResult.errors.length ? 'var(--critical)' : 'var(--good-text)'};">
-          Re-parsed {fitFilesStore.reparseResult.filesReparsed} {fitFilesStore.reparseResult.filesReparsed === 1 ? 'file' : 'files'},
+          Re-read {fitFilesStore.reparseResult.filesReparsed} {fitFilesStore.reparseResult.filesReparsed === 1 ? 'file' : 'files'},
           updated {fitFilesStore.reparseResult.activitiesUpdated} {fitFilesStore.reparseResult.activitiesUpdated === 1 ? 'activity' : 'activities'}{fitFilesStore.reparseResult.errors.length ? ` · ${fitFilesStore.reparseResult.errors.length} failed` : ''}.
         </p>
         {#each fitFilesStore.reparseResult.errors as err}
@@ -618,7 +584,7 @@
     <div class="card mt-4" style="border-color: color-mix(in srgb, var(--critical) 30%, transparent);">
       <span class="section-title" style="color: var(--critical);">Danger zone</span>
       <p style="margin: var(--space-3) 0 var(--space-7); color: var(--ink-secondary); font-size: var(--fs-md);">
-        Permanently delete every entry, activity, goal, setting, and stored .fit/.gpx file from this browser. This cannot be undone. Use Backup > Export all data first if you want a copy.
+        Permanently delete every activity, imported file and setting in this browser. There's no undo, so export a backup first if you might want them back.
       </p>
       <div class="flex justify-between items-center">
         <span style="font-size: var(--fs-md); color: var(--good-text); font-weight: var(--fw-semibold); visibility: {resetDone ? 'visible' : 'hidden'};">Data cleared</span>
@@ -639,10 +605,10 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="modal" style="max-width: 420px;" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="reset-settings-title" tabindex="-1">
-      <h3 id="reset-settings-title" style="margin: 0 0 var(--space-4);">Reset all settings?</h3>
+      <h3 id="reset-settings-title" style="margin: 0 0 var(--space-4);">Reset settings?</h3>
       <p style="margin: 0 0 var(--space-7); color: var(--ink-secondary); font-size: var(--fs-lg);">
-        This restores the {dirtyCount} changed {dirtyCount === 1 ? 'setting' : 'settings'} above to their defaults. It does not
-        delete any activities, goals or files — that's the separate, far more destructive "Reset all data" below.
+        This restores the {dirtyCount} changed {dirtyCount === 1 ? 'setting' : 'settings'} above to their defaults. Your
+        activities and files stay.
       </p>
       <div class="flex justify-between mt-4">
         <button type="button" class="btn btn-secondary" onclick={() => (showResetSettingsConfirm = false)}>Cancel</button>
@@ -659,7 +625,7 @@
     <div class="modal" style="max-width: 504px;" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="reset-title" tabindex="-1">
       <h3 id="reset-title" style="margin: 0 0 var(--space-4); color: var(--critical);">Reset all data?</h3>
       <p style="margin: 0 0 var(--space-7); color: var(--ink-secondary); font-size: var(--fs-lg);">
-        This permanently deletes every entry, activity, goal, and setting stored in this browser. There is no undo.
+        This permanently deletes every activity, imported file and setting in this browser. There's no undo, so export a backup first if you might want them back.
       </p>
       <label for="reset-confirm-input">Type <strong>RESET</strong> to confirm</label>
       <input
@@ -775,10 +741,10 @@
   .settings-chips button.active {
     background: var(--accent);
     border-color: var(--accent);
-    color: var(--bg-app);
+    color: var(--on-accent);
   }
   .settings-chips button.active .mono {
-    color: rgba(10, 12, 15, 0.6);
+    color: color-mix(in srgb, var(--on-accent) 60%, transparent);
   }
 
   .settings-body {
@@ -887,19 +853,15 @@
     font-size: var(--fs-sm);
     color: var(--critical);
   }
-  .settings-maxhr {
+  .settings-number {
     display: flex;
     align-items: center;
     gap: var(--space-3);
   }
-  .settings-maxhr input {
+  .settings-number input {
     width: 70px;
     height: 28px;
     text-align: center;
-  }
-  .settings-maxhr-unit {
-    font-size: var(--fs-sm);
-    color: var(--ink-5);
   }
 
   .settings-footer {

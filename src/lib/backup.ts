@@ -75,15 +75,15 @@ export function parseManifest(json: string): BackupManifest {
   try {
     raw = JSON.parse(json);
   } catch {
-    throw new Error("This backup's manifest is damaged (not valid JSON).");
+    throw new Error("This backup is damaged and can't be restored. Make a new backup in the browser you came from.");
   }
   const m = raw as Partial<BackupManifest> | null;
-  if (!m || m.format !== BACKUP_FORMAT) throw new Error("This zip isn't a Lapline backup.");
+  if (!m || m.format !== BACKUP_FORMAT) throw new Error("This .zip isn't a Lapline backup.");
   if (typeof m.formatVersion !== 'number' || m.formatVersion > BACKUP_FORMAT_VERSION) {
     throw new Error('This backup was made by a newer version of Lapline. Reload the app to update, then try again.');
   }
   if (!Array.isArray(m.files) || !m.files.every((f) => f && typeof f.path === 'string' && typeof f.filename === 'string')) {
-    throw new Error("This backup's file list is damaged.");
+    throw new Error("This backup is damaged and can't be restored. Make a new backup in the browser you came from.");
   }
   const settings: Record<string, string> = {};
   if (m.settings && typeof m.settings === 'object') {
@@ -115,17 +115,23 @@ export function createBackupZip(files: BackupSourceFile[], settings: Record<stri
 }
 
 export interface RestoredBackup {
-  manifest: BackupManifest;
+  /** null for a zip of workout files with no manifest (e.g. Garmin's
+      "Export Original"): `files` is then every .fit/.gpx found in it. */
+  manifest: BackupManifest | null;
   files: { filename: string; data: Uint8Array }[];
   missing: string[]; // manifest entries whose bytes weren't in the zip
 }
 
 export async function readBackupZip(bytes: Uint8Array): Promise<RestoredBackup> {
   const entries = await new Promise<Record<string, Uint8Array>>((resolve, reject) => {
-    unzip(bytes, (err, out) => (err ? reject(new Error("This file isn't a readable zip.")) : resolve(out)));
+    unzip(bytes, (err, out) => (err ? reject(new Error("This file isn't a readable .zip.")) : resolve(out)));
   });
   const manifestBytes = entries[MANIFEST_PATH];
-  if (!manifestBytes) throw new Error("This zip isn't a Lapline backup (it has no lapline-backup.json).");
+  if (!manifestBytes) {
+    const files = workoutFilesIn(entries);
+    if (files.length === 0) throw new Error('This .zip has no workouts or Lapline backup in it.');
+    return { manifest: null, files, missing: [] };
+  }
   const manifest = parseManifest(strFromU8(manifestBytes));
   const files: RestoredBackup['files'] = [];
   const missing: string[] = [];
@@ -135,6 +141,18 @@ export async function readBackupZip(bytes: Uint8Array): Promise<RestoredBackup> 
     else missing.push(f.filename);
   }
   return { manifest, files, missing };
+}
+
+// Every .fit/.gpx anywhere in the zip, under its own name (folders dropped),
+// skipping macOS metadata (__MACOSX/, ._ files).
+function workoutFilesIn(entries: Record<string, Uint8Array>): RestoredBackup['files'] {
+  const files: RestoredBackup['files'] = [];
+  for (const [path, data] of Object.entries(entries)) {
+    const name = path.split('/').pop() ?? '';
+    if (path.startsWith('__MACOSX/') || name.startsWith('.') || !/\.(fit|gpx)$/i.test(name)) continue;
+    files.push({ filename: name, data });
+  }
+  return files;
 }
 
 export function backupFilename(now: Date): string {

@@ -33,7 +33,7 @@
   }
 </script>
 
-<div class="segmented sport-filter" role="group" aria-label="Activity Type">
+<div class="segmented sport-filter" role="group" aria-label="Activity type">
   <button type="button" class:active={selected.size === 0} onclick={selectAll}>All sports</button>
   {#each SPORTS as t (t)}
     <button type="button" class:active={selected.has(t)} onclick={() => toggle(t)}>

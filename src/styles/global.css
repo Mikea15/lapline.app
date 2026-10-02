@@ -539,16 +539,6 @@ label {
   }
 }
 
-/* Expands below the header when the global range's "Custom" toggle is
-   active - one shared drag-slider for the whole app rather than each screen
-   re-implementing its own. Not sticky itself (only .header pins to the top)
-   so it simply scrolls away with the page content beneath it. */
-.custom-range-row {
-  padding: var(--space-5) var(--space-9) var(--space-7);
-  background: var(--bg-app);
-  border-bottom: 1px solid var(--line-soft);
-}
-
 .header-left {
   display: flex;
   align-items: center;
@@ -556,7 +546,7 @@ label {
   min-width: 0;
 }
 
-/* Phone-only copies of the sidebar's tool buttons (Settings/Import/About)
+/* Phone-only copies of the sidebar's tool buttons (Settings/About)
    and the bottom tab bar that replaces the sidebar's nav - both hidden
    until the mobile breakpoint below. */
 .header-tools {
@@ -585,6 +575,14 @@ label {
   align-items: center;
   gap: var(--space-7);
   flex-shrink: 0;
+}
+/* The sun/moon theme toggle sits tight against Sync, as one pair. */
+.header-right .theme-btn {
+  margin-right: calc(var(--space-4) - var(--space-7));
+}
+.sync-btn svg {
+  width: 13px;
+  height: 13px;
 }
 .synced-label {
   font-family: var(--font-mono);
@@ -620,55 +618,38 @@ label {
 }
 .segmented button.active {
   background: var(--accent);
-  color: var(--bg-app);
+  color: var(--on-accent);
 }
 
-/* ===== Trends filter bar ===== */
+/* ===== Filter bar (Trends, Activities) ===== */
 
-.trends-filter-bar {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-7);
-}
-.trends-filter-title {
-  color: var(--ink-3);
-  margin-bottom: var(--space-1);
-}
-.trends-filter-controls {
+/* One compact row: sport pills, then (Trends) the Distance/Time toggle and
+   the value-range slider, which takes the rest of the width. Wraps on
+   narrow screens, the slider dropping to its own line first. */
+.filter-bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-8);
+  align-items: center;
+  gap: var(--space-4) var(--space-7);
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-4);
 }
-.trends-filter-field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  /* Never wider than the panel - the sport filter wraps instead. */
+.filter-bar-range {
+  flex: 1 1 260px;
   min-width: 0;
-  max-width: 100%;
 }
-.trends-filter-row {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  flex: 1;
-  min-width: 220px;
+/* The handles' own labels show the chosen band; the min/max row under the
+   track would only repeat them at the ends, so it's dropped here. */
+.filter-bar .date-slider-bounds {
+  display: none;
 }
-.trends-filter-select {
-  background: var(--bg-panel);
-  border: 1px solid var(--line-panel);
-  border-radius: var(--radius-sm);
-  color: var(--ink-1);
-  font-family: var(--font-mono);
-  font-size: var(--fs-sm);
-  padding: var(--space-3) var(--space-4);
+/* Custom date range (RangeFilter): its own full-width line under the row. */
+.filter-bar-dates {
+  flex: 1 0 100%;
 }
-.trends-filter-select:hover {
-  border-color: var(--ink-6);
-}
-.trends-filter-select:focus-visible {
-  outline: 1px solid var(--accent);
+.filter-bar .date-slider-track {
+  margin-top: var(--space-7);
+  margin-bottom: var(--space-2);
 }
 /* The sport filter has seven options - more than a phone (or a narrow
    window) fits on one line - so it wraps onto more rows instead of running
@@ -784,7 +765,8 @@ label {
   color: var(--accent);
   border-color: var(--accent);
 }
-.icon-btn.spotlight {
+.icon-btn.spotlight,
+.btn.spotlight {
   color: var(--accent);
   border-color: var(--accent);
   animation: icon-spotlight-pulse 1.1s ease-out 3;
@@ -829,7 +811,7 @@ label {
 .btn-primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--bg-app);
+  color: var(--on-accent);
 }
 .btn-primary:hover:not(:disabled) {
   background: var(--accent-hover);
@@ -966,7 +948,7 @@ label {
   align-items: center;
   padding: var(--space-2) var(--space-4);
   border-radius: var(--radius-sm);
-  border: 1px solid #2e3947;
+  border: 1px solid var(--line-chip);
   font-family: var(--font-mono);
   font-weight: var(--fw-medium);
   font-size: var(--fs-xs);
@@ -1208,6 +1190,19 @@ tr.clickable-row:focus-visible {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* A failed file's message says what to do next, so it gets its own full
+   line under the name (lined up with it) instead of being cut short. */
+.import-file-row.error {
+  flex-wrap: wrap;
+  row-gap: var(--space-1);
+}
+.import-file-row.error .import-file-message {
+  flex: 1 0 100%;
+  max-width: none;
+  margin-left: calc(16px + var(--space-4));
+  text-align: left;
+  white-space: normal;
+}
 
 .spinner {
   width: 12px;
@@ -1283,7 +1278,7 @@ tr.clickable-row:focus-visible {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1416,28 +1411,14 @@ tr.clickable-row:focus-visible {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-  /* Second header row: just the range presets, stretched edge to edge in
-     equal columns so all six (7d ... Custom) fit a 320px+ phone without
-     clipping or sideways scrolling. "synced ..." is dropped on a phone -
-     it cost a whole line and isn't worth that much screen - and so is the
-     row itself on screens with no range control (Activities, Calendar). */
-  .header-right {
-    width: 100%;
-  }
-  .header-right:not(:has(.segmented)),
+  /* The Sync button stays on the title row, after the tool buttons, at
+     their tap-target height. "synced ..." is dropped on a phone - there's
+     no room for it on that row. */
   .synced-label {
     display: none;
   }
-  .header .segmented {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    width: 100%;
-  }
-  .header .segmented button {
-    justify-content: center;
-    min-height: 34px;
-    padding: var(--space-3) var(--space-1);
+  .sync-btn {
+    height: 36px;
   }
 
   .screen {

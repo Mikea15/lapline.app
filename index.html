@@ -3,15 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>Lapline: training analysis that stays on your device</title>
+    <title>Lapline: training analysis for the improvers</title>
     <meta name="theme-color" content="#0a0c0f" />
-    <meta name="description" content="Open the .fit and .gpx files from your Garmin, COROS, Wahoo, Suunto, Polar or Apple Watch and get training load, trends, records and lap-by-lap detail. Free, open source, no account, and your files never leave your device." />
+    <meta name="description" content="Training load, fitness trends, records and every lap from the workouts your watch records. Free, open source, no account, and your data stays on your device." />
+    <link rel="canonical" href="https://lapline.app/" />
     <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta property="og:title" content="Lapline: training analysis that stays on your device" />
-    <meta property="og:description" content="Training load, trends, records and lap detail from your .fit and .gpx files. Free, open source, nothing uploaded." />
+    <meta property="og:title" content="Lapline: training analysis for the improvers" />
+    <meta property="og:description" content="Training load, fitness trends, records and every lap from the workouts your watch records. Free, open source, and your data stays on your device." />
     <meta property="og:url" content="https://lapline.app/" />
     <meta property="og:image" content="https://lapline.app/landing/screenshot.png" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -36,101 +37,219 @@
       })();
     </script>
   </head>
-  <body>
-    <header class="l-top">
-      <a class="l-brand" href="/?home" aria-label="Lapline home">
-        <svg width="22" height="22" viewBox="0 0 64 64" aria-hidden="true">
-          <rect x="8" y="18" width="48" height="28" rx="14" fill="none" stroke="currentColor" stroke-width="6" />
-          <line x1="40" y1="12" x2="40" y2="24" stroke="var(--accent)" stroke-width="6" stroke-linecap="round" />
-        </svg>
-        lapline
-      </a>
-      <a class="l-btn l-btn-quiet" href="/app/" data-track="landing_open_app">Open app</a>
-    </header>
+  <body class="home">
+    <!-- SITE_HEADER -->
 
     <main>
-      <section class="l-hero">
-        <h1>Training analysis that stays on your device.</h1>
-        <p class="l-lede">
-          Open the .fit and .gpx files your watch or bike computer records and get training load, trends,
-          personal records and lap-by-lap detail for running, cycling and swimming. No account, nothing
-          uploaded, free and open source.
-        </p>
-        <div class="l-actions">
-          <a class="l-btn l-btn-primary" href="/app/?sample=1" data-track="landing_try_sample">Try it with sample data</a>
-          <a class="l-btn" href="/app/" data-track="landing_open_files">Open your own files</a>
+      <section class="h-hero">
+        <canvas class="h-speed" aria-hidden="true"></canvas>
+        <div class="h-scrim" aria-hidden="true"></div>
+        <div class="h-container h-hero-inner">
+          <div class="h-eyebrows">
+            <span class="h-eyebrow">Run · ride · swim</span>
+            <span class="h-rule" aria-hidden="true"></span>
+            <span class="h-eyebrow h-eyebrow-2">Free · open source · no account</span>
+          </div>
+          <h1 class="h-h1">Training analysis for <span class="h-accent">the improvers.</span></h1>
+          <p class="h-lead">
+            For runners, riders and swimmers who want to know what’s working. Training load, fitness trends, records
+            and every lap, one import away. No account, and your data stays on your device.
+          </p>
+          <div class="h-ctas">
+            <a class="h-btn h-btn-primary" href="/app/?sample=1" data-track="landing_try_sample">Try the demo<span class="h-arrow" aria-hidden="true">→</span></a>
+            <a class="h-btn" href="/app/" data-track="landing_open_files">Get started</a>
+          </div>
+          <p class="h-devices"><span>Garmin</span><span>COROS</span><span>Wahoo</span><span>Suunto</span><span>Polar</span><span>Apple Watch</span></p>
+
+          <div class="h-composite">
+            <div class="h-browser">
+              <div class="h-chrome" aria-hidden="true">
+                <span class="h-dot"></span><span class="h-dot"></span><span class="h-dot"></span>
+                <span class="h-url">lapline.app/app</span>
+                <span class="h-status"><span class="h-status-dot"></span>works offline</span>
+              </div>
+              <!-- The tour video is attached by src/landing/main.ts after the page
+                   has loaded, and only where WebM plays; otherwise this still stays. -->
+              <img class="l-video" src="/landing/screenshot.png" width="1440" height="900" alt="Lapline showing a run: headline numbers, a heart-rate and pace timeline, and lap tiles" />
+            </div>
+            <div class="h-phone" aria-hidden="true">
+              <div class="h-phone-screen">
+                <div class="h-phone-status"><span>9:41</span><span class="h-notch"></span><span class="h-phone-dots">●●●</span></div>
+                <div class="h-phone-title"><span>Today</span><span class="h-phone-date">Thu 1 Oct</span></div>
+                <div class="h-pcard">
+                  <div class="h-micro">Acute : chronic</div>
+                  <div class="h-ratio"><span class="h-ratio-value">1.28</span><span class="h-ratio-band">productive</span></div>
+                  <div class="h-band">
+                    <span style="flex: 2; background: var(--zone-1); opacity: 0.3"></span>
+                    <span style="flex: 5; background: var(--zone-3)"></span>
+                    <span style="flex: 2; background: var(--zone-4); opacity: 0.3"></span>
+                    <span style="flex: 3; background: var(--zone-5); opacity: 0.3"></span>
+                    <i class="h-band-marker" style="left: 56%"></i>
+                  </div>
+                </div>
+                <div class="h-pcard">
+                  <div class="h-micro">Weekly load</div>
+                  <div class="h-pbars" data-viz="phone-load"></div>
+                </div>
+                <div class="h-pgrid">
+                  <div class="h-pcard"><div class="h-micro">VO₂ max est.</div><div class="h-pvo2">48.4</div></div>
+                  <div class="h-pcard"><div class="h-micro">Recovery est.</div><div class="h-pready">Ready</div></div>
+                </div>
+              </div>
+            </div>
+            <p class="h-sr">On a phone, the Today screen shows your acute:chronic ratio, weekly load, and VO₂ max and recovery estimates.</p>
+          </div>
         </div>
-        <figure class="l-shot">
-          <!-- The tour video is attached by src/landing/main.ts after the page
-               has loaded, and only where WebM plays; otherwise this still stays. -->
-          <img class="l-video" src="/landing/screenshot.png" alt="Lapline showing a run: headline numbers, a heart-rate and pace timeline, and lap tiles" />
-        </figure>
       </section>
 
-      <section class="l-section" aria-labelledby="what">
-        <h2 id="what">What you get</h2>
-        <ul class="l-features">
-          <li><strong>Today</strong> Training load against your 6-week baseline, the acute:chronic ratio, VO₂ max and recovery estimates, and a year of consistency at a glance.</li>
-          <li><strong>Every session in detail</strong> Heart-rate and pace timeline, per-kilometre lap tiles, streams, the route coloured by heart-rate zone, and pool swims length by length.</li>
-          <li><strong>Trends</strong> Weekly volume by sport, aerobic efficiency (pace at a given heart rate), intensity distribution, and pace, distance and heart-rate histograms.</li>
-          <li><strong>Records</strong> Best 1 km, 5 km and 10 km, longest sessions, and a critical pace curve compared with the previous period.</li>
-          <li><strong>Calendar</strong> Month by month with weekly totals, training load and rest days.</li>
-          <li><strong>Works offline</strong> Install it on your phone or computer; after the first visit it needs no connection.</li>
-        </ul>
+      <section id="features" class="h-container h-features h-anchor">
+        <div class="h-section-head">
+          <h2 class="h-h2">Six ways to see your training.</h2>
+          <p class="h-intro">From how this week compares with the last six, to every kilometre of Sunday’s long run.</p>
+        </div>
+        <div class="h-grid">
+          <article class="h-cell">
+            <div class="h-viz" data-viz="today"></div>
+            <div class="h-cell-head"><span class="h-index">01</span><h3 class="h-h3">Today</h3></div>
+            <p>See whether you’re building fitness or just getting tired. Your acute:chronic ratio compares this week with your six-week average, next to VO₂ max and recovery estimates and a year of consistency.</p>
+          </article>
+          <article class="h-cell">
+            <div class="h-viz" data-viz="session"></div>
+            <div class="h-cell-head"><span class="h-index">02</span><h3 class="h-h3">Every session in detail</h3></div>
+            <p>Heart rate and pace across the whole session, a tile for every kilometre, your route coloured by heart-rate zone, and pool swims length by length.</p>
+          </article>
+          <article class="h-cell">
+            <div class="h-viz" data-viz="trends"></div>
+            <div class="h-cell-head"><span class="h-index">03</span><h3 class="h-h3">Trends</h3></div>
+            <p>Weekly volume by sport, aerobic efficiency (your pace at a given heart rate), how your time splits between easy and hard, and a critical pace curve: your best pace for every effort from 1 to 60 minutes.</p>
+          </article>
+          <article class="h-cell">
+            <div class="h-viz" data-viz="records"></div>
+            <div class="h-cell-head"><span class="h-index">04</span><h3 class="h-h3">Records</h3></div>
+            <p>Your best 1 km, 5 km and 10 km, your longest session in each sport, and how every record has moved over time.</p>
+          </article>
+          <article class="h-cell">
+            <div class="h-viz" data-viz="calendar"></div>
+            <div class="h-cell-head"><span class="h-index">05</span><h3 class="h-h3">Calendar</h3></div>
+            <p>Every month at a glance, with weekly totals, training load and rest days.</p>
+          </article>
+          <article class="h-cell">
+            <div class="h-viz" data-viz="offline"></div>
+            <div class="h-cell-head"><span class="h-index">06</span><h3 class="h-h3">Works offline</h3></div>
+            <p>Install it like an app on your phone or computer. After the first visit it works without a connection.</p>
+          </article>
+        </div>
       </section>
 
-      <section class="l-section" aria-labelledby="privacy">
-        <h2 id="privacy">Your files never leave your device</h2>
-        <p>
-          Lapline runs entirely in your browser. Your .fit and .gpx files are read on your device and saved in your
-          browser's own storage. There's no Lapline server and no account, so there's nowhere for your data to go.
-        </p>
-        <p>
-          Three extras are <strong>off until you turn them on</strong>: anonymous usage statistics (which screens are used,
-          never your data), place names for your activities (sends a start coordinate to OpenStreetMap), and weather (sends
-          a start coordinate and date to Open-Meteo). To move to another browser, export a backup file and restore it there.
-        </p>
+      <section id="privacy" class="h-container h-privacy h-anchor">
+        <div>
+          <span class="h-eyebrow">Privacy</span>
+          <h2 class="h-h2 h-mt">Your data stays on your device.</h2>
+          <p class="h-body">
+            Lapline runs in your browser. Your workouts are opened and saved right there, on your phone or computer.
+            There’s no Lapline server and no account, so there’s nowhere for your data to go.
+          </p>
+          <p class="h-note">Switching browser or computer? Export a backup and restore it there.</p>
+          <p class="h-note">
+            This website counts visits with SimpleAnalytics, which uses no cookies and collects no personal data. The
+            app only does if you turn it on.
+          </p>
+        </div>
+        <div class="h-device">
+          <span class="h-boundary">your device</span>
+          <div class="h-flow">
+            <span class="h-pill">your workouts</span><span class="h-flow-arrow" aria-hidden="true">→</span>
+            <span class="h-pill">Lapline</span><span class="h-flow-arrow" aria-hidden="true">→</span>
+            <span class="h-pill h-pill-saved">saved here</span>
+          </div>
+          <div class="h-optins">
+            <div class="h-optins-label">Optional extras · off until you turn them on</div>
+            <button type="button" class="h-optin" role="switch" aria-checked="false">
+              <span class="h-switch" aria-hidden="true"><span></span></span>
+              <span><span class="h-optin-title">Usage statistics</span><span class="h-optin-body">Anonymous counts of which screens are used. Never your workouts.</span></span>
+            </button>
+            <button type="button" class="h-optin" role="switch" aria-checked="false">
+              <span class="h-switch" aria-hidden="true"><span></span></span>
+              <span><span class="h-optin-title">Place names</span><span class="h-optin-body">Sends a start coordinate to OpenStreetMap.</span></span>
+            </button>
+            <button type="button" class="h-optin" role="switch" aria-checked="false">
+              <span class="h-switch" aria-hidden="true"><span></span></span>
+              <span><span class="h-optin-title">Weather</span><span class="h-optin-body">Sends a start coordinate and date to Open-Meteo.</span></span>
+            </button>
+          </div>
+        </div>
       </section>
 
-      <section class="l-section" aria-labelledby="guides">
-        <h2 id="guides">Getting your files</h2>
-        <p>Lapline reads .fit and .gpx files. Here's how to get the original files out of your device's app.</p>
-        <div id="import-guides" class="l-guides"></div>
-        <p class="l-more">
-          More: <a href="/guides/open-fit-file/">opening a .fit file online</a> ·
-          <a href="/guides/garmin-fit-file-without-uploading/">Garmin files without uploading</a> ·
-          <a href="/guides/heart-rate-zones-from-fit-file/">time in heart-rate zones</a> ·
-          <a href="/guides/critical-pace/">your critical pace curve</a>
-        </p>
-        <noscript><p>Open the app's Import dialog for step-by-step guides for each device.</p></noscript>
+      <section id="files" class="h-band-section h-anchor">
+        <div class="h-container h-files">
+          <div>
+            <span class="h-eyebrow">Getting your workouts</span>
+            <h2 class="h-h2s h-mt">Works with the watch you already have.</h2>
+            <p class="h-body-s">
+              Export the original workout file (.fit or .gpx) from your device’s app. Pick your device for the steps;
+              the same guides are behind the Sync button in Lapline.
+            </p>
+          </div>
+          <div>
+            <!-- src/landing/main.ts turns these into one button per device
+                 (lib/import-guides.ts) that shows its export steps below. -->
+            <div class="h-chips" id="import-guides">
+              <span class="h-chip">Garmin</span><span class="h-chip">COROS</span><span class="h-chip">Wahoo</span>
+              <span class="h-chip">Suunto</span><span class="h-chip">Polar</span><span class="h-chip">Zwift</span>
+              <span class="h-chip">Apple Watch</span><span class="h-chip">Strava</span>
+            </div>
+            <div class="h-steps" id="import-steps" hidden></div>
+            <div class="h-guides">
+              <a href="/guides/open-fit-file/">Opening a .fit file online<span>guide →</span></a>
+              <a href="/guides/garmin-fit-file-without-uploading/">Garmin files without uploading<span>guide →</span></a>
+              <a href="/guides/heart-rate-zones-from-fit-file/">Time in heart-rate zones<span>guide →</span></a>
+              <a href="/guides/critical-pace/">Your critical pace curve<span>guide →</span></a>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section class="l-section" aria-labelledby="faq">
-        <h2 id="faq">Questions</h2>
-        <details class="l-faq">
-          <summary>Is it free?</summary>
-          <p>Yes. Lapline is free and open source under the MIT licence. There's no paid tier and nothing to sign up for.</p>
-        </details>
-        <details class="l-faq">
-          <summary>Which devices does it work with?</summary>
-          <p>Anything that records .fit or .gpx files: Garmin, COROS, Wahoo, Suunto, Polar, Zwift, bike computers, and Apple Watch through an export app such as HealthFit. .tcx files aren't supported yet.</p>
-        </details>
-        <details class="l-faq">
-          <summary>Where is my data stored?</summary>
-          <p>In your browser, on your device. Each browser keeps its own copy, so a different browser or computer starts empty: use Settings → Backup to export everything as one file and restore it there. Clearing your browser's data for this site deletes it.</p>
-        </details>
-        <details class="l-faq">
-          <summary>Can I use it on my phone?</summary>
-          <p>Yes. Open Lapline in your phone's browser and add it to your Home Screen. On iPhone and iPad this also matters for your data: Safari deletes a website's saved data after 7 days without a visit unless it's installed.</p>
-        </details>
-        <details class="l-faq">
-          <summary>Is this medical advice?</summary>
-          <p>No. VO₂ max, training effect, recovery time and training load are estimates for training guidance. They can be wrong and can't diagnose anything. If you have a health condition, talk to a doctor before changing your training.</p>
-        </details>
-        <details class="l-faq">
-          <summary>Does it sync with Garmin Connect or Strava?</summary>
-          <p>No, on purpose: syncing needs a server and an account. You bring the files. In Chrome or Edge on a computer you can also connect a Garmin watch's USB folder once and re-sync it with one click.</p>
-        </details>
+      <section id="faq" class="h-container h-faq h-anchor">
+        <h2 class="h-h2">Questions</h2>
+        <div class="h-faq-grid">
+          <details name="faq" open>
+            <summary>Is it free?</summary>
+            <p>Yes. Lapline is free and open source under the MIT licence. There’s no paid tier and nothing to sign up for.</p>
+          </details>
+          <details name="faq">
+            <summary>Which devices does it work with?</summary>
+            <p>Anything that records .fit or .gpx files: Garmin, COROS, Wahoo, Suunto, Polar, Zwift, bike computers, and Apple Watch through an export app such as HealthFit. .tcx files aren’t supported yet.</p>
+          </details>
+          <details name="faq">
+            <summary>Where is my data stored?</summary>
+            <p>In your browser, on your device. Each browser keeps its own copy, so a different browser or computer starts empty: use Settings → Backup to export everything as one file and restore it there. Clearing your browser’s data for this site deletes it.</p>
+          </details>
+          <details name="faq">
+            <summary>Can I use it on my phone?</summary>
+            <p>Yes. Open Lapline in your phone’s browser and add it to your Home Screen. On iPhone and iPad this also matters for your data: Safari deletes a website’s saved data after 7 days without a visit unless it’s installed.</p>
+          </details>
+          <details name="faq">
+            <summary>Is this medical advice?</summary>
+            <p>No. VO₂ max, training effect, recovery time and training load are estimates for training guidance. They can be wrong and can’t diagnose anything. If you have a health condition, talk to a doctor before changing your training.</p>
+          </details>
+          <details name="faq">
+            <summary>Does it sync with Garmin Connect or Strava?</summary>
+            <p>No, on purpose: that would need a server and an account. You bring the files. In Chrome or Edge on a computer you can also connect a Garmin watch’s USB folder once, and from then on one click brings in anything new.</p>
+          </details>
+        </div>
+      </section>
+
+      <section class="h-container h-closing">
+        <div class="h-closing-panel">
+          <div>
+            <h2 class="h-closing-title">See what your training is really doing.</h2>
+            <p>Explore the demo first, or bring your own workouts. Nothing to sign up for.</p>
+          </div>
+          <div class="h-ctas h-ctas-tight">
+            <a class="h-btn h-btn-primary h-btn-sm" href="/app/?sample=1" data-track="landing_try_sample_closing">Try the demo</a>
+            <a class="h-btn h-btn-sm" href="/app/" data-track="landing_open_files_closing">Get started</a>
+          </div>
+        </div>
       </section>
     </main>
 
