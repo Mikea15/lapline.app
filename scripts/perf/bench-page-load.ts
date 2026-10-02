@@ -74,10 +74,10 @@ async function runOneIteration(baseUrl: string, browser: Browser, samples: Recor
 
   // Import every stub .fit file - exercises the real worker-pool parse path.
   const stubFiles = readdirSync(STUB_DIR).filter((f) => f.toLowerCase().endsWith('.fit')).map((f) => path.join(STUB_DIR, f));
-  await page.getByRole('button', { name: 'Import' }).click();
+  await page.getByRole('button', { name: 'Sync' }).click();
   const importStart = Date.now();
   await page.locator('#fit-import').setInputFiles(stubFiles);
-  await page.getByText(/Import (Complete|Finished With Errors)/).waitFor({ timeout: 60_000 });
+  await page.getByText(/Import (complete|finished with errors)/).waitFor({ timeout: 60_000 });
   (samples[`import.${stubFiles.length}Files`] ??= []).push(Date.now() - importStart);
   await page.getByRole('button', { name: 'Close' }).click();
 
