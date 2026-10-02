@@ -854,6 +854,33 @@ label {
   font-size: var(--fs-sm);
 }
 
+/* ===== Five KPI cards in a row (Calendar and Trends top rows) =====
+   Five across when there's room, three then two on mid widths, one per
+   row on a phone - by the row's own width, not the window's. */
+.kpi-row5-wrap {
+  container: kpirow / inline-size;
+}
+.kpi-row5 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+}
+@container kpirow (min-width: 560px) {
+  .kpi-row5 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container kpirow (min-width: 760px) {
+  .kpi-row5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@container kpirow (min-width: 1100px) {
+  .kpi-row5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
 /* ===== Stat strips (KPI rows, hero strips) ===== */
 
 .stat-strip {

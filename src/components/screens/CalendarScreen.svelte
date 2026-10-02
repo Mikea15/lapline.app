@@ -11,6 +11,7 @@
      Everything below reads the same real `activities` table every other
      screen does; there is nothing "planned" or "prescribed" left to show. -->
 <script lang="ts">
+  import CalendarKpis from '../kpi/CalendarKpis.svelte';
   import { activitiesStore, settingsStore } from '../../lib/stores.svelte';
   import { monthGridWeeks, isInMonth } from '../../lib/calendar-grid';
   import { activityLoad } from '../../lib/training-load';
@@ -233,44 +234,6 @@
     return FAMILY_ORDER.filter((f) => present.has(f));
   });
 
-  // ===== Month stat strip (real, completed-sessions-only) =====
-
-  let monthActivities = $derived(activities.filter((a) => isInMonth(a.date, viewYear, viewMonth)));
-  let monthSessionCount = $derived(monthActivities.length);
-  let monthHours = $derived(monthActivities.reduce((s, a) => s + a.durationMin, 0) / 60);
-  let monthKm = $derived(monthActivities.reduce((s, a) => s + a.distanceKm, 0));
-  let monthLoad = $derived(monthActivities.reduce((s, a) => s + activityLoad(a), 0));
-
-  let prevMonthLabel = $derived.by(() => {
-    const pm = viewMonth === 1 ? 12 : viewMonth - 1;
-    return MONTH_NAMES[pm - 1]!;
-  });
-  let prevMonthLoad = $derived.by(() => {
-    const py = viewMonth === 1 ? viewYear - 1 : viewYear;
-    const pm = viewMonth === 1 ? 12 : viewMonth - 1;
-    return activities.filter((a) => isInMonth(a.date, py, pm)).reduce((s, a) => s + activityLoad(a), 0);
-  });
-  let monthLoadDeltaPct = $derived(prevMonthLoad > 0 ? ((monthLoad - prevMonthLoad) / prevMonthLoad) * 100 : null);
-
-  let daysInViewMonth = $derived(new Date(viewYear, viewMonth, 0).getDate());
-  // Rest days only counts days that have actually happened - null for a
-  // month that hasn't started yet, since "0 of 0 rest days" would be
-  // misleading rather than simply not-yet-applicable.
-  let restDaysInfo = $derived.by(() => {
-    const monthEnd = `${viewYear}-${pad2(viewMonth)}-${pad2(daysInViewMonth)}`;
-    const countThrough = monthEnd < today ? monthEnd : isCurrentMonth ? today : null;
-    if (countThrough === null) return null;
-    let elapsedDays = 0;
-    let restDays = 0;
-    for (let d = 1; d <= daysInViewMonth; d++) {
-      const date = `${viewYear}-${pad2(viewMonth)}-${pad2(d)}`;
-      if (date > countThrough) break;
-      elapsedDays++;
-      if (!activitiesByDate.has(date)) restDays++;
-    }
-    return { restDays, elapsedDays };
-  });
-
   // ===== Interactions =====
 
   let hoveredWeek = $state<number | null>(null);
@@ -301,57 +264,7 @@
   {#if activities.length === 0}
     <div class="panel empty-state">No activities yet. Choose Sync to add your first.</div>
   {:else}
-    <div class="stat-strip">
-      <div class="stat-cell">
-        <InfoLabel class="stat-cell-label" text="Sessions" tip="Sessions recorded in {monthLabel}." />
-        <div class="stat-cell-value-row">
-          <span class="stat-cell-value mono">{monthSessionCount}</span>
-        </div>
-        <div class="stat-cell-delta neutral">{isCurrentMonth ? 'so far this month' : monthLabel}</div>
-      </div>
-
-      <div class="stat-cell">
-        <InfoLabel class="stat-cell-label" text="Time trained" tip="Total training time recorded in {monthLabel}, across all sports." />
-        <div class="stat-cell-value-row">
-          <span class="stat-cell-value mono">{Math.floor(monthHours)}:{pad2(Math.round((monthHours % 1) * 60))}</span>
-          <span class="stat-cell-unit">h</span>
-        </div>
-      </div>
-
-      <div class="stat-cell">
-        <InfoLabel class="stat-cell-label" text="Distance" tip="Total distance recorded in {monthLabel}, across all sports." />
-        <div class="stat-cell-value-row">
-          <span class="stat-cell-value mono">{toDisplayDistance(monthKm, unitSystem).toFixed(1)}</span>
-          <span class="stat-cell-unit">{distanceUnit(unitSystem)}</span>
-        </div>
-      </div>
-
-      <div class="stat-cell">
-        <InfoLabel class="stat-cell-label" text="Month load" tip="Training load for {monthLabel}: hours of running, cycling and swimming, weighted by sport." />
-        <div class="stat-cell-value-row">
-          <span class="stat-cell-value mono">{Math.round(monthLoad)}</span>
-          <span class="stat-cell-unit">au</span>
-        </div>
-        {#if monthLoadDeltaPct !== null}
-          <div class="stat-cell-delta {monthLoadDeltaPct >= 0 ? 'positive' : 'caution'}">{monthLoadDeltaPct >= 0 ? '+' : ''}{monthLoadDeltaPct.toFixed(0)}% on {prevMonthLabel}</div>
-        {:else}
-          <div class="stat-cell-delta neutral">no {prevMonthLabel} data</div>
-        {/if}
-      </div>
-
-      <div class="stat-cell">
-        <InfoLabel class="stat-cell-label" text="Rest days" tip="Days so far in {monthLabel} with no recorded session." />
-        {#if restDaysInfo}
-          <div class="stat-cell-value-row">
-            <span class="stat-cell-value mono">{restDaysInfo.restDays}</span>
-            <span class="stat-cell-unit">of {restDaysInfo.elapsedDays}</span>
-          </div>
-        {:else}
-          <div class="stat-cell-value-row"><span class="stat-cell-value mono">—</span></div>
-          <div class="stat-cell-delta neutral">month hasn't started</div>
-        {/if}
-      </div>
-    </div>
+    <CalendarKpis {activities} year={viewYear} month={viewMonth} {today} {weeks} {unitSystem} />
 
     <section class="panel cal-panel">
       <div class="panel-head cal-panel-head">

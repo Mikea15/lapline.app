@@ -153,6 +153,16 @@ export interface SportTime {
 }
 
 /** Hours per sport family over the last `days` days, most first. */
+/** Hours per sport family across the given activities, biggest first. */
+export function hoursBySport(activities: Activity[]): SportTime[] {
+  const hours = new Map<SportFamily, number>();
+  for (const a of activities) {
+    const f = sportFamily(a.sport);
+    hours.set(f, (hours.get(f) ?? 0) + a.durationMin / 60);
+  }
+  return [...hours].map(([family, h]) => ({ family, hours: h })).sort((a, b) => b.hours - a.hours);
+}
+
 export function timeBySport(activities: Activity[], days: number): SportTime[] {
   const hours = new Map<SportFamily, number>();
   for (const a of activities) {

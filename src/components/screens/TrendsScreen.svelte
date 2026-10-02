@@ -1,11 +1,12 @@
 <!-- TrendsScreen.svelte - rolling-range training trends. -->
 <script lang="ts">
+  import TrendsKpis from '../kpi/TrendsKpis.svelte';
   import type { Snippet } from 'svelte';
   import { activitiesStore, settingsStore } from '../../lib/stores.svelte';
   import { addDays, daysBetween, formatDateRangeShort } from '../../lib/date-utils';
   import { sportFamily } from '../../lib/sport-color';
   import type { SportFamily } from '../../lib/sport-color';
-  import { toDisplayDistance, toDisplayElevation, distanceUnit, elevationUnit, formatPace, paceUnit, MI_IN_KM } from '../../lib/units';
+  import { toDisplayDistance, distanceUnit, formatPace } from '../../lib/units';
   import { kmSplitPaces } from '../../lib/best-effort';
   import TrendVolumeChart from '../TrendVolumeChart.svelte';
   import EfficiencyScatter from '../EfficiencyScatter.svelte';
@@ -101,41 +102,6 @@
   function sumRunKm(acts: typeof allActivities): number {
     return acts.filter((a) => sportFamily(a.sport) === 'running').reduce((s, a) => s + a.distanceKm, 0);
   }
-  function sumHours(acts: typeof allActivities): number {
-    return acts.reduce((s, a) => s + a.durationMin, 0) / 60;
-  }
-  function sumAscent(acts: typeof allActivities): number {
-    return acts.reduce((s, a) => s + a.ascentM, 0);
-  }
-  function avgRunPace(acts: typeof allActivities): number {
-    const runs = acts.filter((a) => sportFamily(a.sport) === 'running' && a.distanceKm > 0.5);
-    const dist = runs.reduce((s, a) => s + a.distanceKm, 0);
-    const dur = runs.reduce((s, a) => s + a.durationMin, 0);
-    return dist > 0 ? dur / dist : 0;
-  }
-
-  function delta(curr: number, prev: number, unit = '', higherIsBetter = true): { text: string; direction: 'positive' | 'caution' | 'neutral' } {
-    if (prev === 0) return { text: '', direction: 'neutral' };
-    const diff = curr - prev;
-    const pct = (diff / Math.abs(prev)) * 100;
-    if (Math.abs(pct) < 1) return { text: '±0%', direction: 'neutral' };
-    const good = higherIsBetter ? diff > 0 : diff < 0;
-    return { text: `${diff > 0 ? '+' : ''}${diff.toFixed(1)}${unit} vs prior`, direction: good ? 'positive' : 'caution' };
-  }
-
-  let totalVolumeKm = $derived(sumRunKm(current));
-  let totalVolumeDelta = $derived(delta(totalVolumeKm, sumRunKm(previous), ' km'));
-  let sessions = $derived(current.length);
-  let sessionsPerWeek = $derived((sessions / (rangeLenDays / 7)).toFixed(1));
-  let movingHours = $derived(sumHours(current));
-  let movingHoursDelta = $derived(delta(movingHours, sumHours(previous), 'h'));
-  let avgPace = $derived(avgRunPace(current));
-  let avgPacePrev = $derived(avgRunPace(previous));
-  // Seconds per km, or per mile in imperial.
-  let paceDeltaSec = $derived(
-    avgPace > 0 && avgPacePrev > 0 ? Math.round((avgPace - avgPacePrev) * 60 * (unitSystem === 'imperial' ? MI_IN_KM : 1)) : 0
-  );
-  let ascentM = $derived(sumAscent(current));
 
   // Per-km split paces for the pace histogram, resampled from each run's raw
   // distance/time stream rather than read off its recorded laps - laps vary
@@ -205,32 +171,7 @@
     bind:timeEnd
   />
 
-  <div class="stat-strip">
-    <div class="stat-cell">
-      <InfoLabel class="stat-cell-label" text="Run volume" tip="Total running distance in the selected range, compared to the equal-length period before it." />
-      <div class="stat-cell-value-row"><span class="stat-cell-value mono">{toDisplayDistance(totalVolumeKm, unitSystem).toFixed(1)}</span><span class="stat-cell-unit">{distanceUnit(unitSystem)}</span></div>
-      {#if totalVolumeDelta.text}<div class="stat-cell-delta {totalVolumeDelta.direction}">{totalVolumeDelta.text}</div>{/if}
-    </div>
-    <div class="stat-cell">
-      <InfoLabel class="stat-cell-label" text="Sessions" tip="Number of activities logged in the selected range, and the average per week." />
-      <div class="stat-cell-value-row"><span class="stat-cell-value mono">{sessions}</span><span class="stat-cell-unit">{formatDateRangeShort(startDate, endDate)}</span></div>
-      <div class="stat-cell-delta neutral">{sessionsPerWeek} / week</div>
-    </div>
-    <div class="stat-cell">
-      <InfoLabel class="stat-cell-label" text="Time trained" tip="Total training time across all sports in the selected range." />
-      <div class="stat-cell-value-row"><span class="stat-cell-value mono">{movingHours.toFixed(1)}</span><span class="stat-cell-unit">hours</span></div>
-      {#if movingHoursDelta.text}<div class="stat-cell-delta {movingHoursDelta.direction}">{movingHoursDelta.text}</div>{/if}
-    </div>
-    <div class="stat-cell">
-      <InfoLabel class="stat-cell-label" text="Avg pace" tip="Average running pace across the selected range, weighted by distance." />
-      <div class="stat-cell-value-row"><span class="stat-cell-value mono">{avgPace > 0 ? formatPace(avgPace, unitSystem) : '—'}</span></div>
-      {#if paceDeltaSec !== 0}<div class="stat-cell-delta {paceDeltaSec < 0 ? 'positive' : 'caution'}">{paceDeltaSec > 0 ? '+' : ''}{paceDeltaSec} s{paceUnit(unitSystem)}</div>{/if}
-    </div>
-    <div class="stat-cell">
-      <InfoLabel class="stat-cell-label" text="Elevation" tip="Total elevation gained, summed across every activity in the selected range." />
-      <div class="stat-cell-value-row"><span class="stat-cell-value mono">{Math.round(toDisplayElevation(ascentM, unitSystem)).toLocaleString()}</span><span class="stat-cell-unit">{elevationUnit(unitSystem)} gained</span></div>
-    </div>
-  </div>
+  <TrendsKpis {current} {previous} {startDate} {endDate} {unitSystem} />
 
   <div class="panel">
     <div class="panel-head">
