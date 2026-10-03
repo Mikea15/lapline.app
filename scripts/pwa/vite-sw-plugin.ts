@@ -4,21 +4,28 @@
 // that precaches the whole built app shell, so the app
 // opens offline and installs as a PWA. Generated at build time rather than
 // kept in public/ because the precache list has to name Vite's hashed
-// output files, which only exist once the bundle is written. Build-only:
+// output files, which only exist once the bundle is written - so the list is
+// read from the written output directory, not from the in-memory bundle
+// (that still holds the empty JS chunks of the CSS-only guide and changelog
+// entries, which Vite drops before writing; precaching a file that 404s makes
+// cache.addAll fail and the worker never installs). Build-only:
 // main.ts never registers a service worker under `vite dev`, where cached
 // modules would fight HMR.
 
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 
-function listPublicFiles(dir: string, prefix = ''): string[] {
+// Every file under dir, as /-separated paths relative to it. Dot-entries are
+// skipped (dist/ can hold the public repo's .git checkout).
+function listFiles(dir: string, prefix = ''): string[] {
   let files: string[] = [];
   for (const name of readdirSync(dir)) {
+    if (name.startsWith('.')) continue;
     const full = path.join(dir, name);
     const rel = prefix ? `${prefix}/${name}` : name;
-    if (statSync(full).isDirectory()) files = files.concat(listPublicFiles(full, rel));
+    if (statSync(full).isDirectory()) files = files.concat(listFiles(full, rel));
     else files.push(rel);
   }
   return files;
@@ -98,32 +105,40 @@ self.addEventListener('activate', (event) => {
 `;
 
 export function serviceWorkerPlugin(): Plugin {
-  let publicDir = '';
   let base = '/';
   return {
     name: 'lapline-service-worker',
     apply: 'build',
     configResolved(config) {
-      publicDir = config.publicDir;
       base = config.base;
     },
-    generateBundle(_options, bundle) {
-      // Every built file except the HTML pages: the app page is cached under
-      // its /app/ URL, and the landing page isn't part of the offline app.
-      const built = Object.keys(bundle).filter((f) => !f.endsWith('.map') && !f.endsWith('.html'));
-      const fromPublic = publicDir ? listPublicFiles(publicDir) : [];
-      // The landing page's own files (its tour video alone is ~2 MB) aren't
-      // part of the offline app.
-      const isLanding = (f: string) => f.startsWith('landing/') || f.startsWith('assets/landing-');
-      const precache = [...new Set([...built, ...fromPublic])].filter((f) => !isLanding(f)).sort();
-      // Built file names are already content-hashed; public/ files keep
-      // fixed names, so their bytes go into the hash too - the cache name
-      // then changes exactly when anything shipped changes.
-      const hash = createHash('sha256').update(precache.join('\n'));
-      for (const f of fromPublic) hash.update(readFileSync(path.join(publicDir, f)));
+    writeBundle(options) {
+      const outDir = options.dir!;
+      // Every written file except the HTML pages (the app page is cached
+      // under its /app/ URL; the landing, guide and changelog pages aren't
+      // part of the offline app), source maps and the workers themselves.
+      // The landing page's own files (its tour video alone is ~2 MB) and the
+      // guide/changelog chunks aren't part of the offline app either.
+      const skip = (f: string) =>
+        f.endsWith('.map') ||
+        f.endsWith('.html') ||
+        f === 'sw.js' ||
+        f === 'app/sw.js' ||
+        f.startsWith('landing/') ||
+        /^assets\/(landing|guide-|changelog)/.test(f);
+      const precache = listFiles(outDir).filter((f) => !skip(f)).sort();
+      if (!precache.some((f) => /^assets\/app-.*\.js$/.test(f))) {
+        throw new Error('service worker: no app entry chunk found in the build output');
+      }
+      // Hashing the bytes, not just the names: public/ files keep fixed
+      // names, so the cache name then changes exactly when anything shipped
+      // changes.
+      const hash = createHash('sha256');
+      for (const f of precache) hash.update(f).update(readFileSync(path.join(outDir, f)));
       const version = hash.digest('hex').slice(0, 12);
-      this.emitFile({ type: 'asset', fileName: 'app/sw.js', source: serviceWorkerSource(version, base, precache) });
-      this.emitFile({ type: 'asset', fileName: 'sw.js', source: RETIRED_ROOT_WORKER });
+      mkdirSync(path.join(outDir, 'app'), { recursive: true });
+      writeFileSync(path.join(outDir, 'app/sw.js'), serviceWorkerSource(version, base, precache));
+      writeFileSync(path.join(outDir, 'sw.js'), RETIRED_ROOT_WORKER);
     }
   };
 }

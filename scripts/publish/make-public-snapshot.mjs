@@ -29,9 +29,12 @@ const EXCLUDE = [
   /^next-steps\.md$/,
   /^plan\.md$/,
   /^i18n-plan\.md$/,
+  // Working notes at the root (plans, task lists): only the README is public.
+  /^(?!README\.md$)[^/]+\.md$/,
   /^launch-tasks\.md$/,
   /^publish\.md$/,
   /^run\.bat$/,
+  /^deploy\.bat$/,
   /^scripts\/publish\/leak-patterns\.txt$/
 ];
 // Anything matching these in the output aborts the snapshot. They live in a
