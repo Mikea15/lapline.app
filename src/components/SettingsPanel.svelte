@@ -567,10 +567,11 @@
         <p style="margin: var(--space-5) 0 0; font-size: var(--fs-md); color: {backupMessage.tone === 'error' ? 'var(--critical)' : backupMessage.tone === 'good' ? 'var(--good-text)' : 'var(--ink-muted)'};">{backupMessage.text}</p>
       {/if}
       {#if restoreResult}
-        <p style="margin: var(--space-5) 0 0; font-size: var(--fs-md); color: {restoreResult.errors.length || restoreResult.missing.length ? 'var(--caution)' : 'var(--good-text)'};">
+        <p style="margin: var(--space-5) 0 0; font-size: var(--fs-md); color: {restoreResult.errors.length || restoreResult.missing.length ? 'var(--caution-ink)' : 'var(--good-text)'};">
           Restored {restoreResult.activitiesImported} {restoreResult.activitiesImported === 1 ? 'activity' : 'activities'} from
           {restoreResult.filesInBackup} {restoreResult.filesInBackup === 1 ? 'file' : 'files'}{restoreResult.settingsRestored ? `, plus ${restoreResult.settingsRestored} ${restoreResult.settingsRestored === 1 ? 'setting' : 'settings'}` : ''}.
           {#if restoreResult.missing.length}{restoreResult.missing.length} {restoreResult.missing.length === 1 ? 'file was' : 'files were'} missing from the backup.{/if}
+          {#if restoreResult.sampleRemoved}Sample data removed.{/if}
         </p>
         {#each restoreResult.errors as err}
           <p style="margin: var(--space-2) 0 0; font-size: var(--fs-base); color: var(--critical);">{err}</p>
@@ -695,7 +696,7 @@
   .settings-changed-count {
     font-family: var(--font-mono);
     font-size: var(--fs-xs);
-    color: var(--accent);
+    color: var(--accent-ink);
   }
   .settings-header-actions {
     display: flex;
@@ -731,7 +732,7 @@
   }
   .settings-result-count {
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
     white-space: nowrap;
   }
   .settings-clear {
@@ -740,7 +741,7 @@
     white-space: nowrap;
   }
   .settings-clear:disabled {
-    color: var(--ink-7);
+    color: var(--ink-5);
     cursor: default;
   }
   .settings-chips {
@@ -763,7 +764,7 @@
   }
   .settings-chips button .mono {
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .settings-chips button.active {
     background: var(--accent);
@@ -844,7 +845,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--accent);
+    color: var(--accent-ink);
   }
   .settings-row-desc {
     margin-top: var(--space-2);
@@ -855,7 +856,7 @@
   .settings-row-default {
     margin-top: var(--space-2);
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .settings-row-control {
     flex: none;

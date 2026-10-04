@@ -3,9 +3,9 @@
 // selected range against the equal-length range before it - backs the
 // Records screen's curve.
 
-import type { Activity, ActivityDetail } from './types';
+import type { Activity } from './types';
 import { sportFamily } from './sport-color';
-import { bestDistanceForDuration } from './best-effort';
+import { effortDistanceForDuration, type GetEfforts } from './activity-efforts';
 import { addDays, daysBetween } from './date-utils';
 
 // 1 / 5 / 10 / 20 / 30 / 45 / 60 minutes, matching the design's non-linear x-axis.
@@ -16,17 +16,14 @@ export interface CriticalPacePoint {
   paceMinPerKm: number | null;
 }
 
-async function curveForActivities(
-  acts: Activity[],
-  getDetail: (id: number) => Promise<ActivityDetail | null>
-): Promise<CriticalPacePoint[]> {
+async function curveForActivities(acts: Activity[], getEfforts: GetEfforts): Promise<CriticalPacePoint[]> {
   const runs = acts.filter((a) => sportFamily(a.sport) === 'running');
-  const details = await Promise.all(runs.map((a) => getDetail(a.id)));
+  const efforts = await Promise.all(runs.map(getEfforts));
   return CRITICAL_PACE_DURATIONS_SEC.map((durationSec) => {
     let best: number | null = null;
-    for (const d of details) {
-      if (!d || d.distance.length < 2) continue;
-      const meters = bestDistanceForDuration(d.distance, d.t, durationSec);
+    for (const e of efforts) {
+      if (!e) continue;
+      const meters = effortDistanceForDuration(e, durationSec);
       if (meters && meters > 0) {
         const paceMinPerKm = durationSec / 60 / (meters / 1000);
         if (best === null || paceMinPerKm < best) best = paceMinPerKm;
@@ -46,7 +43,7 @@ export interface CriticalPaceCurves {
 // immediately before it.
 export async function criticalPaceCurves(
   activities: Activity[],
-  getDetail: (id: number) => Promise<ActivityDetail | null>,
+  getEfforts: GetEfforts,
   startDate: string,
   endDate: string
 ): Promise<CriticalPaceCurves> {
@@ -57,8 +54,8 @@ export async function criticalPaceCurves(
   const thisRangeActs = activities.filter((a) => inRange(a.date, startDate, endDate));
   const prevRangeActs = activities.filter((a) => inRange(a.date, prevStart, prevEnd));
   const [thisRange, previousRange] = await Promise.all([
-    curveForActivities(thisRangeActs, getDetail),
-    curveForActivities(prevRangeActs, getDetail)
+    curveForActivities(thisRangeActs, getEfforts),
+    curveForActivities(prevRangeActs, getEfforts)
   ]);
   return { thisRange, previousRange };
 }

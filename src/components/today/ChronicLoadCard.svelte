@@ -18,10 +18,10 @@
   let ramp = $derived(chronicRamp(series, RAMP_WEEKS));
 
   const STATUS: Record<RampStatus, { text: string; color: string }> = {
-    steep: { text: 'Steep ramp', color: 'var(--caution)' },
-    building: { text: 'Building', color: 'var(--positive)' },
+    steep: { text: 'Steep ramp', color: 'var(--caution-ink)' },
+    building: { text: 'Building', color: 'var(--positive-ink)' },
     steady: { text: 'Steady', color: 'var(--ink-4)' },
-    easing: { text: 'Easing', color: 'var(--zone-1)' }
+    easing: { text: 'Easing', color: 'var(--zone-1-ink)' }
   };
   let status = $derived(STATUS[ramp.status]);
 

@@ -5,10 +5,12 @@
      The cursor marker follows the same `scrubIndex` the synchronized stream
      tracks use, so scrubbing any stream moves this marker too. -->
 <script lang="ts">
+  import { altitudeRange as altitudeRangeOf } from '../lib/altitude-range';
   import { projectIsometricRoute } from '../lib/isometric';
   import { fitViewBox, viewBoxAttr } from '../lib/view-box';
   import { lapPinFixes } from '../lib/lap-pins';
   import { ZONE_COLORS, zoneIndexForHr } from '../lib/hr-zones';
+  import { toDisplayElevation, elevationUnit, type UnitSystem } from '../lib/units';
   import type { Lap } from '../lib/types';
 
   interface Props {
@@ -32,9 +34,10 @@
     // opt-in Settings toggle is off) and '' (looked up, nothing found) both
     // fall back to the coordinates.
     locationLabel?: string;
+    unitSystem?: UnitSystem;
   }
 
-  let { lat, lon, hr, altitude, distance, hrZoneBoundaries, scrubIndex, laps = [], hoveredLapIndex = null, onHoverLap, locationLabel }: Props = $props();
+  let { lat, lon, hr, altitude, distance, hrZoneBoundaries, scrubIndex, laps = [], hoveredLapIndex = null, onHoverLap, locationLabel, unitSystem = 'metric' }: Props = $props();
 
   interface Fix {
     i: number; // index into the original per-second streams (hr/altitude/distance)
@@ -164,15 +167,11 @@
     return { lat: (latMin + latMax) / 2, lon: (lonMin + lonMax) / 2 };
   });
 
+  // Trimmed (2nd-98th percentile) range, matching the activity hero.
   let elevationRange = $derived.by(() => {
     if (fixes.length === 0) return null;
-    let min = Infinity,
-      max = -Infinity;
-    for (const f of fixes) {
-      if (f.alt < min) min = f.alt;
-      if (f.alt > max) max = f.alt;
-    }
-    return { min: Math.round(min), max: Math.round(max) };
+    const r = altitudeRangeOf(fixes.map((f) => f.alt));
+    return r ? { min: Math.round(toDisplayElevation(r.min, unitSystem)), max: Math.round(toDisplayElevation(r.max, unitSystem)) } : null;
   });
 
   function fmtCoord(v: number, pos: string, neg: string): string {
@@ -187,7 +186,7 @@
   let routeDescription = $derived.by(() => {
     if (!iso) return '';
     const parts = [`${fixes.length} GPS points`];
-    if (elevationRange) parts.push(`elevation ${elevationRange.min} to ${elevationRange.max} metres`);
+    if (elevationRange) parts.push(`elevation ${elevationRange.min} to ${elevationRange.max} ${unitSystem === 'imperial' ? 'feet' : 'metres'}`);
     if (lapPins.length > 0) parts.push(`${lapPins.length} lap ${lapPins.length === 1 ? 'marker' : 'markers'}`);
     parts.push(locationLabel || `centred near ${fmtCoord(center.lat, 'N', 'S')}, ${fmtCoord(center.lon, 'E', 'W')}`);
     return `An isometric 3D reconstruction of the route, drawn as a ribbon coloured by heart-rate zone at each point. ${parts.join(', ')}.`;
@@ -280,7 +279,7 @@
           {fmtCoord(center.lat, 'N', 'S')}, {fmtCoord(center.lon, 'E', 'W')}
         {/if}
         {#if elevationRange}
-          <br />elevation min: {elevationRange.min} m, max: {elevationRange.max} m
+          <br />elevation min: {elevationRange.min} {elevationUnit(unitSystem)}, max: {elevationRange.max} {elevationUnit(unitSystem)}
         {/if}
       </div>
       <div class="route-annotation top-right mono">isometric reconstruction</div>
@@ -319,7 +318,7 @@
     position: absolute;
     font-size: var(--fs-xs);
     line-height: 1.5;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .bottom-left {
     left: 12px;

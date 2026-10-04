@@ -97,6 +97,26 @@ export function formatElevation(m: number, system: UnitSystem): string {
   return `${toDisplayElevation(m, system).toFixed(0)} ${elevationUnit(system)}`;
 }
 
+// Pool swims are shown in whole metres ("1500 m") in every unit system -
+// pools are measured in metres/yards, and "0.48 km" reads badly.
+export function poolMeters(km: number): number {
+  return Math.round(km * 1000);
+}
+
+export function formatPoolDistance(km: number): string {
+  return `${poolMeters(km)} m`;
+}
+
+// "−6 to 140 m" - a low-to-high elevation range with real minus signs, so a
+// negative minimum can't read as a hyphenated range ("-6-140").
+export function formatElevationRange(minM: number, maxM: number, system: UnitSystem): string {
+  const fmt = (m: number) => {
+    const v = Math.round(toDisplayElevation(m, system));
+    return v < 0 ? `−${Math.abs(v)}` : String(v);
+  };
+  return `${fmt(minM)} to ${fmt(maxM)} ${elevationUnit(system)}`;
+}
+
 export function formatWeight(kg: number, system: UnitSystem, digits = 1): string {
   return `${toDisplayWeight(kg, system).toFixed(digits)} ${weightUnit(system)}`;
 }

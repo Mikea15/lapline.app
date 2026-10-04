@@ -1,5 +1,5 @@
 // scripts/perf/run-bench-page-load.ts - CLI entry point: `npm run perf:page-load`.
-// Requires `npm run build`'s `vite build` step (dist/) to already exist.
+// Requires dist/ (`npm run build`) to already exist.
 // Kept separate from bench-page-load.ts for the same reason as
 // run-bench-functions.ts.
 

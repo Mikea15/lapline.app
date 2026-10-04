@@ -83,7 +83,7 @@
   }
   .zone-range {
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .zone-duration {
     font-size: var(--fs-base);

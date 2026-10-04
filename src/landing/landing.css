@@ -57,7 +57,7 @@ body {
 }
 
 a {
-  color: var(--accent);
+  color: var(--accent-ink);
   text-decoration: none;
 }
 a:hover {
@@ -104,7 +104,7 @@ summary:focus-visible {
   color: var(--ink-1);
 }
 .wordmark-e {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .l-nav {
   display: flex;
@@ -213,7 +213,7 @@ summary:focus-visible {
   padding: var(--gutter) var(--gutter) calc(var(--gutter) + env(safe-area-inset-bottom));
 }
 .l-foot-legal {
-  color: var(--ink-6);
+  color: var(--ink-5);
   font-family: var(--font-mono);
   font-size: 12px;
 }
@@ -354,7 +354,7 @@ summary:focus-visible {
 }
 
 .h-eyebrow {
-  color: var(--accent);
+  color: var(--accent-ink);
   font-family: var(--font-mono);
   font-weight: var(--fw-semibold);
   font-size: 11px;
@@ -373,7 +373,7 @@ summary:focus-visible {
   text-wrap: balance;
 }
 .h-accent {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .h-h2 {
   margin: 0;
@@ -458,7 +458,7 @@ summary:focus-visible {
   flex-wrap: wrap;
   gap: 6px 18px;
   margin: 22px 0 0;
-  color: var(--ink-6);
+  color: var(--ink-5);
   font-family: var(--font-mono);
   font-weight: var(--fw-medium);
   font-size: 11px;
@@ -493,7 +493,7 @@ summary:focus-visible {
 }
 .h-url {
   margin-left: 14px;
-  color: var(--ink-6);
+  color: var(--ink-5);
   font-family: var(--font-mono);
   font-size: 11px;
 }
@@ -502,7 +502,7 @@ summary:focus-visible {
   align-items: center;
   gap: 6px;
   margin-left: auto;
-  color: var(--zone-3);
+  color: var(--zone-3-ink);
   font-family: var(--font-mono);
   font-weight: var(--fw-medium);
   font-size: 11px;
@@ -578,7 +578,7 @@ summary:focus-visible {
   letter-spacing: -0.02em;
 }
 .h-phone-date {
-  color: var(--ink-6);
+  color: var(--ink-5);
   font-family: var(--font-mono);
   font-weight: var(--fw-regular);
   font-size: 11px;
@@ -608,13 +608,13 @@ summary:focus-visible {
   margin-top: 8px;
 }
 .h-ratio-value {
-  color: var(--zone-4);
+  color: var(--zone-4-ink);
   font-size: 28px;
   line-height: 1;
   letter-spacing: -0.04em;
 }
 .h-ratio-band {
-  color: var(--zone-3);
+  color: var(--zone-3-ink);
   font-weight: var(--fw-medium);
   font-size: 11px;
 }
@@ -658,12 +658,12 @@ summary:focus-visible {
 }
 .h-pvo2 {
   margin-top: 8px;
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: 19px;
 }
 .h-pready {
   margin-top: 8px;
-  color: var(--zone-3);
+  color: var(--zone-3-ink);
   font-family: var(--font-sans);
   font-weight: var(--fw-bold);
   font-size: 15px;
@@ -728,7 +728,7 @@ summary:focus-visible {
   gap: 10px;
 }
 .h-index {
-  color: var(--ink-6);
+  color: var(--ink-5);
   font-family: var(--font-mono);
   font-weight: var(--fw-medium);
   font-size: 11px;
@@ -815,7 +815,7 @@ button.h-chip:hover {
 }
 button.h-chip[aria-expanded='true'] {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .h-steps {
   margin-top: 14px;
@@ -856,10 +856,10 @@ button.h-chip[aria-expanded='true'] {
   font-size: 14px;
 }
 .h-guides a:hover {
-  color: var(--accent);
+  color: var(--accent-ink);
 }
 .h-guides span {
-  color: var(--ink-6);
+  color: var(--ink-5);
   font-family: var(--font-mono);
   font-size: 12px;
   white-space: nowrap;
@@ -897,14 +897,14 @@ button.h-chip[aria-expanded='true'] {
 }
 .h-faq summary::after {
   content: '+';
-  color: var(--ink-6);
+  color: var(--ink-5);
   font-family: var(--font-mono);
   font-weight: var(--fw-regular);
   font-size: 16px;
 }
 .h-faq details[open] summary::after {
-  content: '−';
-  color: var(--accent);
+  content: 'âˆ’';
+  color: var(--accent-ink);
 }
 .h-faq details p {
   max-width: 56ch;
@@ -964,3 +964,23 @@ button.h-chip[aria-expanded='true'] {
   }
 }
 
+/* Touch targets: the desktop sizes of the theme toggle, quiet button and
+   device chips are under 44px. */
+@media (max-width: 720px) {
+  .l-theme {
+    width: 44px;
+    height: 44px;
+  }
+  .l-btn-quiet,
+  .h-chip {
+    height: 44px;
+  }
+  .l-brand {
+    position: relative;
+  }
+  .l-brand::after {
+    content: '';
+    position: absolute;
+    inset: min(0px, calc((100% - 44px) / 2)) 0;
+  }
+}

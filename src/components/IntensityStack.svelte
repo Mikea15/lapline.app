@@ -53,12 +53,19 @@
       return out;
     })
   );
+
+  let a11yLabel = $derived.by(() => {
+    const tot = [0, 0, 0, 0, 0];
+    for (const w of visible) w.forEach((v, z) => (tot[z]! += v));
+    const sum = tot.reduce((s, v) => s + v, 0) || 1;
+    return `Weekly intensity distribution, ${visible.length} weeks with zone data. Share of time: ${tot.map((v, z) => `Zone ${z + 1} ${Math.round((v / sum) * 100)}%`).join(', ')}`;
+  });
 </script>
 
 {#if visible.length === 0}
   <div class="empty-state" style="padding: var(--space-10) var(--space-4);">No zone data in this range.</div>
 {:else}
-  <svg viewBox="0 0 {VB_W} {VB_H}" class="stack-svg" role="img" aria-label="Weekly intensity distribution">
+  <svg viewBox="0 0 {VB_W} {VB_H}" class="stack-svg" role="img" aria-label={a11yLabel}>
     {#each stacks as week, wi (wi)}
       {#each week as seg, si (si)}
         <rect x={seg.x} y={seg.y} width={slotW} height={seg.h} fill={seg.color} fill-opacity="0.82" />

@@ -8,7 +8,7 @@
 // (settingsStore.getLocationLookupEnabled) - see PrivacyPanel for the
 // disclosure of exactly what this sends and to whom.
 
-import { createThrottle } from './rate-limit';
+import { createRetryGate, createThrottle } from './rate-limit';
 
 interface NominatimAddress {
   city?: string;
@@ -27,6 +27,8 @@ interface NominatimResponse {
 
 // Nominatim's usage policy caps clients at one request per second.
 const throttled = createThrottle(1100);
+// A coordinate whose lookup just failed isn't retried for a few minutes.
+const gated = createRetryGate<string>(10 * 60_000);
 
 // Picks the shortest sensible locality name from Nominatim's address
 // breakdown - city/town/village/hamlet before the broader suburb/county/
@@ -37,22 +39,28 @@ export function pickLabel(address: NominatimAddress | undefined): string {
   return address.city || address.town || address.village || address.hamlet || address.suburb || address.county || address.state || '';
 }
 
-export async function geocode(lat: number, lon: number): Promise<string> {
-  return throttled(async () => {
-    try {
-      // Nominatim's usage policy asks for a valid HTTP Referer or a custom
-      // User-Agent identifying the app; browsers block scripts from setting
-      // User-Agent, but fetch() already sends this page's own Referer by
-      // default, which satisfies the policy without any extra header here.
-      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1`;
-      const res = await fetch(url, { headers: { Accept: 'application/json' } });
-      if (!res.ok) return '';
-      const data = (await res.json()) as NominatimResponse;
-      return pickLabel(data.address);
-    } catch {
-      // Offline, blocked, or rate-limited - fall back to no label rather
-      // than surfacing a network error on an otherwise-local screen.
-      return '';
-    }
-  });
+// Resolves to the place name, '' when the provider answered but has no
+// name for these coordinates (a real answer - safe to store), or null when
+// the lookup failed for now (offline, blocked, rate-limited, server error)
+// and should be retried later rather than saved.
+export async function geocode(lat: number, lon: number): Promise<string | null> {
+  return gated(`${lat},${lon}`, () =>
+    throttled(async () => {
+      try {
+        // Nominatim's usage policy asks for a valid HTTP Referer or a custom
+        // User-Agent identifying the app; browsers block scripts from setting
+        // User-Agent, but fetch() already sends this page's own Referer by
+        // default, which satisfies the policy without any extra header here.
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=14&addressdetails=1`;
+        const res = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!res.ok) return null;
+        const data = (await res.json()) as NominatimResponse;
+        return pickLabel(data.address);
+      } catch {
+        // Offline, blocked, or a malformed response - no label for now,
+        // rather than surfacing a network error on an otherwise-local screen.
+        return null;
+      }
+    })
+  );
 }

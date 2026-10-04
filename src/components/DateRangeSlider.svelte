@@ -67,8 +67,8 @@
   }
 
   function onHandleKeydown(handle: 'start' | 'end', e: KeyboardEvent) {
-    if (e.key === 'ArrowLeft') { nudge(handle, -1); e.preventDefault(); }
-    else if (e.key === 'ArrowRight') { nudge(handle, 1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { nudge(handle, -1); e.preventDefault(); }
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { nudge(handle, 1); e.preventDefault(); }
   }
 </script>
 
@@ -85,11 +85,12 @@
       onpointerdown={(e) => onHandlePointerDown('start', e)}
       onkeydown={(e) => onHandleKeydown('start', e)}
       role="slider"
+      aria-orientation="horizontal"
       aria-label="Start date"
       aria-valuemin={minDay}
       aria-valuemax={maxDay}
       aria-valuenow={toDay(start)}
-      aria-valuetext={start}
+      aria-valuetext="{formatDateShort(start)} {start.slice(0, 4)}"
     >
       <span class="date-slider-tooltip">{formatDateShort(start)}</span>
     </button>
@@ -101,11 +102,12 @@
       onpointerdown={(e) => onHandlePointerDown('end', e)}
       onkeydown={(e) => onHandleKeydown('end', e)}
       role="slider"
+      aria-orientation="horizontal"
       aria-label="End date"
       aria-valuemin={minDay}
       aria-valuemax={maxDay}
       aria-valuenow={toDay(end)}
-      aria-valuetext={end}
+      aria-valuetext="{formatDateShort(end)} {end.slice(0, 4)}"
     >
       <span class="date-slider-tooltip">{formatDateShort(end)}</span>
     </button>

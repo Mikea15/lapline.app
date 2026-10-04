@@ -4,7 +4,7 @@
 // these - an accidentally-quadratic loop, a lost memoization - shows up as a
 // number in the perf report instead of just "the app feels slower" months
 // later. Run standalone with `npm run perf:functions`, or as part of
-// `npm run build` via report.ts.
+// `npm run build:perf` / `npm run perf` via report.ts.
 
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -22,6 +22,7 @@ import { weeklyLoadBuckets, trailingMean, acuteChronicRatio } from '../../src/li
 import { runVolumeBars, zoneSeconds } from '../../src/lib/today-kpis.ts';
 import { bestTimeForDistance, bestDistanceForDuration, kmSplitPaces } from '../../src/lib/best-effort.ts';
 import { smooth } from '../../src/lib/smoothing.ts';
+import { computeActivityEfforts } from '../../src/lib/activity-efforts.ts';
 import { addDays, todayStr } from '../../src/lib/date-utils.ts';
 
 const STUB_DIR = path.join(ROOT, 'test-fixtures');
@@ -46,16 +47,16 @@ export async function runFunctionBenchmarks(): Promise<TimingResult[]> {
   );
 
   const stubs = await loadStubActivities();
-  const { activities, getDetail } = buildSyntheticHistory(stubs, SYNTHETIC_ACTIVITY_COUNT);
+  const { activities, getEfforts } = buildSyntheticHistory(stubs, SYNTHETIC_ACTIVITY_COUNT);
   const endDate = todayStr();
   const startDate = addDays(endDate, -365);
   const sports: ('running' | 'cycling' | 'pool-swim' | 'cardio' | 'other')[] = ['running', 'cycling', 'pool-swim', 'cardio', 'other'];
 
-  results.push(await timeitAsync(`records.computeAllRecords (${SYNTHETIC_ACTIVITY_COUNT} activities)`, () => computeAllRecords(activities, getDetail)));
+  results.push(await timeitAsync(`records.computeAllRecords (${SYNTHETIC_ACTIVITY_COUNT} activities)`, () => computeAllRecords(activities, getEfforts)));
   results.push(await timeitAsync(`records.milestoneLadders (${SYNTHETIC_ACTIVITY_COUNT} activities)`, () => milestoneLadders(activities, sports, startDate, endDate)));
-  results.push(await timeitAsync(`critical-pace.criticalPaceCurves (${SYNTHETIC_ACTIVITY_COUNT} activities)`, () => criticalPaceCurves(activities, getDetail, startDate, endDate)));
-  results.push(await timeitAsync(`vo2max.currentVo2Max (${SYNTHETIC_ACTIVITY_COUNT} activities)`, () => currentVo2Max(activities, getDetail)));
-  results.push(await timeitAsync(`vo2max.weeklyVo2MaxTrend (52 weeks)`, () => weeklyVo2MaxTrend(activities, getDetail, 52)));
+  results.push(await timeitAsync(`critical-pace.criticalPaceCurves (${SYNTHETIC_ACTIVITY_COUNT} activities)`, () => criticalPaceCurves(activities, getEfforts, startDate, endDate)));
+  results.push(await timeitAsync(`vo2max.currentVo2Max (${SYNTHETIC_ACTIVITY_COUNT} activities)`, () => currentVo2Max(activities, getEfforts)));
+  results.push(await timeitAsync(`vo2max.weeklyVo2MaxTrend (52 weeks)`, () => weeklyVo2MaxTrend(activities, getEfforts, 52)));
   results.push(await timeitAsync(`recovery.currentRecovery (${SYNTHETIC_ACTIVITY_COUNT} activities)`, () => currentRecovery(activities)));
 
   results.push(
@@ -80,6 +81,11 @@ export async function runFunctionBenchmarks(): Promise<TimingResult[]> {
     await timeitAsync(`best-effort.bestDistanceForDuration (1 activity, ${distance.length} samples)`, () => bestDistanceForDuration(distance, t, 1200))
   );
   results.push(await timeitAsync(`best-effort.kmSplitPaces (1 activity, ${distance.length} samples)`, () => kmSplitPaces(distance, t)));
+  results.push(
+    await timeitAsync(`activity-efforts.computeActivityEfforts (1 activity, ${distance.length} samples)`, () =>
+      computeActivityEfforts(1, longestRun.activity.sport, distance, t)
+    )
+  );
   results.push(
     await timeitAsync(`smoothing.smooth (1 activity, ${longestRun.records.length} samples)`, () => smooth(longestRun.records.map((r) => r.hr)))
   );

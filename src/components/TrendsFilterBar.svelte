@@ -70,20 +70,20 @@
 
   <div
     class="segmented"
-    role="tablist"
-    aria-label="Subject"
+    role="group"
+    aria-label="Measure by"
     title="Plot the weekly volume chart, and filter the range, by distance or by time"
   >
     {#each SUBJECTS as s (s.key)}
-      <button type="button" class:active={subject === s.key} onclick={() => (subject = s.key)}>{s.label}</button>
+      <button type="button" class:active={subject === s.key} aria-pressed={subject === s.key} onclick={() => (subject = s.key)}>{s.label}</button>
     {/each}
   </div>
 
-  <div class="filter-bar-range" title="Drag either handle to only include activities within this {subject === 'distance' ? 'distance' : 'duration'} band">
+  <div class="filter-bar-range" role="group" aria-label="{subject === 'distance' ? 'Distance' : 'Duration'} band" title="Drag either handle to only include activities within this {subject === 'distance' ? 'distance' : 'duration'} band">
     {#if subject === 'distance'}
-      <ValueRangeSlider min={distanceMin} max={distanceMax} bind:start={distanceStart} bind:end={distanceEnd} step={0.1} formatValue={formatKm} />
+      <ValueRangeSlider min={distanceMin} max={distanceMax} bind:start={distanceStart} bind:end={distanceEnd} step={0.1} formatValue={formatKm} label="distance" />
     {:else}
-      <ValueRangeSlider min={timeMin} max={timeMax} bind:start={timeStart} bind:end={timeEnd} step={1} formatValue={formatMinutes} />
+      <ValueRangeSlider min={timeMin} max={timeMax} bind:start={timeStart} bind:end={timeEnd} step={1} formatValue={formatMinutes} label="duration" />
     {/if}
   </div>
 </div>

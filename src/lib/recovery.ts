@@ -9,6 +9,7 @@
 // only updates when a new activity with its own recovery-time estimate is
 // imported.
 
+import { activityStart } from './activity-time';
 import type { Activity } from './types';
 
 export interface RecoveryStatus {
@@ -18,16 +19,12 @@ export interface RecoveryStatus {
   sourceDate: string | null;
 }
 
-// Reconstructs the activity's real end-of-session timestamp from fields this
-// app already stores (date + local wall-clock start time + duration) - there
-// is no stored "end timestamp" field of its own.
+// The activity's real end-of-session timestamp: its start instant (see
+// activityStart) plus duration - there is no stored "end timestamp" field
+// of its own.
 function activityEndTime(a: Activity): Date | null {
-  if (!a.startTimeLabel) return null;
-  const [h, m] = a.startTimeLabel.split(':').map(Number);
-  if (h === undefined || m === undefined || Number.isNaN(h) || Number.isNaN(m)) return null;
-  const start = new Date(`${a.date}T00:00:00`);
-  start.setHours(h, m, 0, 0);
-  return new Date(start.getTime() + a.durationMin * 60000);
+  const start = activityStart(a);
+  return start && new Date(start.getTime() + a.durationMin * 60000);
 }
 
 // The longest still-counting-down recovery window across recent activities -

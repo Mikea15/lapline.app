@@ -55,9 +55,10 @@
     data sends its <strong>start coordinate</strong> (not the route, and nothing else from the
     activity) to <strong>OpenStreetMap's Nominatim</strong> service, to show a place name on that
     activity (e.g. "City of Amsterdam Running" instead of just "Running"). As with any web
-    request, Nominatim also sees your IP address and that the request came from Lapline. Each
-    activity is looked up once; the answer is saved in this browser, so reopening it sends
-    nothing.
+    request, Nominatim also sees your IP address and that the request came from Lapline. Once an
+    activity gets an answer, it's saved in this browser, so reopening it sends nothing. If the
+    lookup fails (for example while offline), it's tried again the next time you open that
+    activity.
   </p>
 </div>
 
@@ -69,7 +70,9 @@
     nothing else from the activity) to <strong>Open-Meteo's</strong> historical weather archive,
     to show the weather (e.g. "Clear", "Rain") next to its temperature. The app picks the hour
     itself from that day's answer. As with any web request, Open-Meteo also sees your IP
-    address. Each activity is looked up once and the answer is saved in this browser.
+    address. Once an activity gets an answer, it's saved in this browser. If there isn't one
+    yet (offline, or the archive hasn't caught up with a recent day - it lags by a few days),
+    it's tried again the next time you open that activity.
   </p>
 </div>
 

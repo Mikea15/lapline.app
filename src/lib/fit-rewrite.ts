@@ -30,6 +30,10 @@ export interface FitMessage {
   has(num: number): boolean;
   get(num: number): number | null;
   set(num: number, value: number): void;
+  /** A numeric field's values (null where invalid) - for array fields such as time_in_zone's. */
+  getArray(num: number): (number | null)[] | null;
+  /** Writes values (null = invalid) into a numeric field, up to its length. */
+  setArray(num: number, values: (number | null)[]): void;
   /** Fills a field with its base type's "invalid" value (or zeros for strings/bytes). */
   clear(num: number): void;
 }
@@ -37,6 +41,9 @@ export interface FitMessage {
 export interface RewriteOptions {
   /** Keep messages of this global message number (default: keep all). */
   keep?: (global: number) => boolean;
+  /** Drop a single data message of a kept type by returning false (runs
+      before `edit`; the message's definition stays in the file). */
+  filter?: (msg: FitMessage) => boolean;
   /** Edit a kept data message's fields in place. */
   edit?: (msg: FitMessage) => void;
   /** Walk a truncated file as far as its whole records go instead of
@@ -83,13 +90,26 @@ function makeMessage(def: MessageDef, bytes: Uint8Array, start: number): FitMess
     o += f.size;
   }
   const le = def.littleEndian;
+  type Base = (typeof BASE)[number];
+  // Numeric fields only; `count` is how many values the field holds.
   const numeric = (num: number) => {
     const entry = offsets.get(num);
     if (!entry) return null;
     const base = BASE[entry.field.baseType & 0x1f];
-    // Only single-value numeric fields are read/written as numbers.
-    if (!base || entry.field.size !== base.size) return null;
-    return { ...entry, base };
+    if (!base || entry.field.size % base.size !== 0) return null;
+    return { ...entry, base, count: entry.field.size / base.size };
+  };
+  const read = (offset: number, base: Base) => {
+    let v: number;
+    if (base.size === 1) v = base.signed ? view.getInt8(offset) : view.getUint8(offset);
+    else if (base.size === 2) v = base.signed ? view.getInt16(offset, le) : view.getUint16(offset, le);
+    else v = base.signed ? view.getInt32(offset, le) : view.getUint32(offset, le);
+    return v === base.invalid ? null : v;
+  };
+  const write = (offset: number, base: Base, value: number) => {
+    if (base.size === 1) base.signed ? view.setInt8(offset, value) : view.setUint8(offset, value);
+    else if (base.size === 2) base.signed ? view.setInt16(offset, value, le) : view.setUint16(offset, value, le);
+    else base.signed ? view.setInt32(offset, value, le) : view.setUint32(offset, value, le);
   };
   return {
     global: def.global,
@@ -97,21 +117,21 @@ function makeMessage(def: MessageDef, bytes: Uint8Array, start: number): FitMess
     has: (num) => offsets.has(num),
     get(num) {
       const e = numeric(num);
-      if (!e) return null;
-      const { offset, base } = e;
-      let v: number;
-      if (base.size === 1) v = base.signed ? view.getInt8(offset) : view.getUint8(offset);
-      else if (base.size === 2) v = base.signed ? view.getInt16(offset, le) : view.getUint16(offset, le);
-      else v = base.signed ? view.getInt32(offset, le) : view.getUint32(offset, le);
-      return v === base.invalid ? null : v;
+      // get/set treat only single-value fields as numbers.
+      return e && e.count === 1 ? read(e.offset, e.base) : null;
     },
     set(num, value) {
       const e = numeric(num);
+      if (e && e.count === 1) write(e.offset, e.base, value);
+    },
+    getArray(num) {
+      const e = numeric(num);
+      return e ? Array.from({ length: e.count }, (_, i) => read(e.offset + i * e.base.size, e.base)) : null;
+    },
+    setArray(num, values) {
+      const e = numeric(num);
       if (!e) return;
-      const { offset, base } = e;
-      if (base.size === 1) base.signed ? view.setInt8(offset, value) : view.setUint8(offset, value);
-      else if (base.size === 2) base.signed ? view.setInt16(offset, value, le) : view.setUint16(offset, value, le);
-      else base.signed ? view.setInt32(offset, value, le) : view.setUint32(offset, value, le);
+      for (let i = 0; i < Math.min(e.count, values.length); i++) write(e.offset + i * e.base.size, e.base, values[i] ?? e.base.invalid);
     },
     clear(num) {
       const entry = offsets.get(num);
@@ -154,6 +174,18 @@ export function rewriteFit(input: Uint8Array, opts: RewriteOptions = {}): Uint8A
   // Local type -> current definition. Dropped types stay here too: their
   // data messages still have to be skipped by their real size.
   const defs = new Map<number, MessageDef & { kept: boolean }>();
+  // A data message from `start` (its record header) to `end`. Dropping one
+  // with a full timestamp moves the base later compressed timestamps decode
+  // from, so `filter` is for files without them.
+  const emitData = (def: MessageDef & { kept: boolean }, start: number, end: number) => {
+    if (!def.kept) return;
+    if (opts.filter || opts.edit) {
+      const msg = makeMessage(def, bytes, start + 1);
+      if (opts.filter && !opts.filter(msg)) return;
+      opts.edit?.(msg);
+    }
+    out.push(bytes.subarray(start, end));
+  };
 
   let p = headerSize;
   while (p < dataEnd) {
@@ -165,10 +197,7 @@ export function rewriteFit(input: Uint8Array, opts: RewriteOptions = {}): Uint8A
       if (def === undefined) throw new Error(`Data message for undefined local type ${local}`);
       const end = p + 1 + def.size;
       if (overruns(end)) break;
-      if (def.kept) {
-        opts.edit?.(makeMessage(def, bytes, p + 1));
-        out.push(bytes.subarray(p, end));
-      }
+      emitData(def, p, end);
       p = end;
     } else if (recordHeader & 0x40) {
       // Definition message.
@@ -206,10 +235,7 @@ export function rewriteFit(input: Uint8Array, opts: RewriteOptions = {}): Uint8A
       if (def === undefined) throw new Error(`Data message for undefined local type ${local}`);
       const end = p + 1 + def.size;
       if (overruns(end)) break;
-      if (def.kept) {
-        opts.edit?.(makeMessage(def, bytes, p + 1));
-        out.push(bytes.subarray(p, end));
-      }
+      emitData(def, p, end);
       p = end;
     }
   }

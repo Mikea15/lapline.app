@@ -10,6 +10,8 @@
      resting-metabolic-rate input this app doesn't track) and a "Distance
      Category" field (unclear what real data it would even come from). -->
 <script lang="ts">
+  import { bestWindowPace, maxPlausibleSpeedMps } from '../lib/best-effort';
+  import { altitudeRange } from '../lib/altitude-range';
   import RadialGauge from './RadialGauge.svelte';
   import InfoLabel from './InfoLabel.svelte';
   import { sportFamily } from '../lib/sport-color';
@@ -66,8 +68,7 @@
 
   let altitudeMinMax = $derived.by(() => {
     if (isPoolSwim) return null;
-    const vals = detail.altitude.filter((v) => v !== 0);
-    return vals.length > 0 ? { min: Math.min(...vals), max: Math.max(...vals) } : null;
+    return altitudeRange(detail.altitude);
   });
 
   // Same "500m+ qualifying lap" rule fit-parser.ts's own computeBestPace
@@ -84,6 +85,10 @@
     }
     return worst;
   });
+
+  // Fastest 1 km from the per-second stream (same search as Records); the
+  // device's lap-based stored value is the fallback when there's no stream.
+  let fastestPaceMinPerKm = $derived(bestWindowPace(detail.distance, detail.t, 1000, maxPlausibleSpeedMps(detail.sport)) ?? detail.bestPaceMinPerKm);
 
   let avgPaceMinPerKm = $derived(detail.distanceKm > 0.05 ? detail.durationMin / detail.distanceKm : 0);
 
@@ -163,7 +168,7 @@
         <h3 class="sr-heading">Pace</h3>
         <div class="meta-grid">
           <div class="meta-item"><span class="meta-label">Average</span><span class="meta-value mono">{formatPace(avgPaceMinPerKm, unitSystem)}</span></div>
-          {#if detail.bestPaceMinPerKm > 0}<div class="meta-item"><span class="meta-label">Max (fastest)</span><span class="meta-value mono">{formatPace(detail.bestPaceMinPerKm, unitSystem)}</span></div>{/if}
+          {#if fastestPaceMinPerKm > 0}<div class="meta-item"><span class="meta-label">Max (fastest)</span><span class="meta-value mono">{formatPace(fastestPaceMinPerKm, unitSystem)}</span></div>{/if}
           {#if worstPaceMinPerKm > 0}<div class="meta-item"><span class="meta-label">Min (slowest)</span><span class="meta-value mono">{formatPace(worstPaceMinPerKm, unitSystem)}</span></div>{/if}
         </div>
       </section>
@@ -294,7 +299,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .meta-value {
     font-family: var(--font-mono);

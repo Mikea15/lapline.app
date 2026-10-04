@@ -33,13 +33,17 @@
   --ink-2: #c3ced9;
   --ink-3: #9aa7b4;
   --ink-4: #8d9aa8;
-  --ink-5: #64717e;
+  --ink-5: #7a8794;
   --ink-6: #4d5865;
   --ink-7: #3c4653;
 
   /* Signal */
   --accent: #3fd0c9;
   --accent-hover: #7ce4de;
+  /* Accent as text on a surface (wordmark, links): equals --accent in dark. */
+  --accent-ink: #3fd0c9;
+  /* Keyboard focus ring: 3:1+ against every surface it sits on. */
+  --focus-ring: #3fd0c9;
   /* Text on an accent (or zone-coloured) fill. */
   --on-accent: #0a0c0f;
   /* Dimmed backdrop behind dialogs. */
@@ -74,6 +78,22 @@
   --positive: #7cc45a;
   --caution: #e3a53d;
   --alert: #e2603f;
+  /* Status colours as TEXT (the base ones above are fills/marks). Dark
+     theme: the fills already clear AA on the panels. */
+  --positive-ink: var(--positive);
+  --caution-ink: var(--caution);
+  --alert-ink: var(--alert);
+  /* Zone colours as text on a panel, and text sitting on a zone fill. */
+  --zone-1-ink: var(--zone-1);
+  --zone-2-ink: var(--zone-2);
+  --zone-3-ink: var(--zone-3);
+  --zone-4-ink: var(--zone-4);
+  --zone-5-ink: var(--zone-5);
+  --zone-1-on: var(--on-accent);
+  --zone-2-on: var(--on-accent);
+  --zone-3-on: var(--on-accent);
+  --zone-4-on: var(--on-accent);
+  --zone-5-on: var(--on-accent);
 
   /* Heatmap ramp (rest -> most active) */
   --heat-0: #0e1216;
@@ -182,12 +202,14 @@
   --ink-2: #2b3138;
   --ink-3: #3c4550;
   --ink-4: #4d5763;
-  --ink-5: #646d78;
+  --ink-5: #5c6570;
   --ink-6: #7a838d;
   --ink-7: #9aa1a9;
 
   --accent: #16a39c;
   --accent-hover: #0f8a84;
+  --accent-ink: #086a65;
+  --focus-ring: #086a65;
   --on-accent: #06201e;
   --overlay: rgba(22, 25, 29, 0.35);
   --tooltip-bg: rgba(255, 255, 255, 0.95);
@@ -203,7 +225,7 @@
   --zone-2: #1aa8b0;
   --zone-3: #4f9a2f;
   --zone-4: #c98a1c;
-  --zone-5: #d24a2a;
+  --zone-5: #cc4526;
 
   --sport-running: #16a39c;
   --sport-cycling: #4f9a2f;
@@ -215,6 +237,19 @@
   --positive: #4f9a2f;
   --caution: #c98a1c;
   --alert: #d24a2a;
+  --positive-ink: #37731d;
+  --caution-ink: #8a5a00;
+  --alert-ink: #b83a1c;
+  --zone-1-ink: #2f62b8;
+  --zone-2-ink: #0d6d73;
+  --zone-3-ink: #37731d;
+  --zone-4-ink: #8a5a00;
+  --zone-5-ink: #b83a1c;
+  --zone-1-on: #ffffff;
+  --zone-2-on: var(--on-accent);
+  --zone-3-on: var(--on-accent);
+  --zone-4-on: var(--on-accent);
+  --zone-5-on: #ffffff;
 
   --heat-0: #ebe7e0;
   --heat-1: #c6e4e1;

@@ -11,13 +11,17 @@
 // time ("HH:MM") tells same-day sessions apart, so it's part of the match
 // whenever the new activity has one. Only a start-time-less activity (no
 // start timestamp in its file) falls back to date + sport, since there's
-// nothing better to identify it by.
+// nothing better to identify it by. When both sides have the UTC start
+// instant, that's compared instead: the "HH:MM" label depends on the
+// browser's timezone at import, so the same file re-imported while
+// travelling would otherwise not match itself.
 import type { Activity } from './types';
 
-export function findExistingActivity<T extends Pick<Activity, 'startTimeLabel'>>(
-  sameDateAndSport: T[],
-  parsed: Pick<Activity, 'startTimeLabel'>
-): T | undefined {
+type MatchFields = Pick<Activity, 'startTimeLabel' | 'startUtc'>;
+
+export function findExistingActivity<T extends MatchFields>(sameDateAndSport: T[], parsed: MatchFields): T | undefined {
   if (!parsed.startTimeLabel) return sameDateAndSport[0];
-  return sameDateAndSport.find((a) => a.startTimeLabel === parsed.startTimeLabel);
+  return sameDateAndSport.find((a) =>
+    a.startUtc && parsed.startUtc ? a.startUtc === parsed.startUtc : a.startTimeLabel === parsed.startTimeLabel
+  );
 }

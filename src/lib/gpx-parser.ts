@@ -247,6 +247,7 @@ export function parseGPX(xmlText: string): ParsedActivity[] {
         garminVo2Max: 0,
         recoveryTimeHours: 0,
         startTimeLabel: getStartTimeLabel(timed[0]!.time),
+        startUtc: timed[0]!.time.toISOString(),
         poolLengthM: 0
       },
       records,

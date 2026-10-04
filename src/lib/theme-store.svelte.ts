@@ -1,9 +1,12 @@
 // lib/theme-store.svelte.ts - the app's reactive view of lib/theme.ts, so
 // Settings > Theme and the header's sun/moon button stay in step.
+import { untrack } from 'svelte';
 import { getThemePref, setThemePref, resolveTheme, watchTheme, applyTheme, DEFAULT_THEME, type ThemePref, type Theme } from './theme';
 
 let _pref = $state<ThemePref>(getThemePref());
-let _theme = $state<Theme>(resolveTheme(_pref));
+// Initial value only - read once, untracked on purpose.
+let _theme = $state<Theme>(resolveTheme(untrack(() => _pref)));
+let initialised = false;
 
 export const themeStore = {
   get pref(): ThemePref {
@@ -27,6 +30,9 @@ export const themeStore = {
   /** Call once at startup: applies the saved choice and follows system and
    *  other-tab changes. */
   init() {
+    // Once per page: HMR or a remount must not stack duplicate listeners.
+    if (initialised) return;
+    initialised = true;
     _theme = applyTheme(_pref);
     watchTheme();
     window.addEventListener('lapline-theme', (e) => {

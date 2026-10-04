@@ -5,24 +5,27 @@ import path from 'node:path';
 import { parseGPX } from '../gpx-parser';
 
 // Anonymised copies of real recordings (scripts/demo/make-test-fixtures.ts):
-// same names, dates and metrics as the originals, positions moved.
+// the originals' sports and device metrics, but GPS routes trimmed and
+// moved and dates shifted by a secret number of days.
 const STUB_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../test-fixtures');
 
 function loadStub(name: string): string {
   return readFileSync(path.join(STUB_DIR, name), 'utf8');
 }
 
-describe('parseGPX against real Strava-exported stub files', () => {
-  // Confirmed via direct inspection: 2951 real <trkpt> points, 2020-08-16
-  // 10:22:45Z to 11:12:46Z (2999s wall span), type "running".
+describe('parseGPX against real exported GPX tracks', () => {
+  // Confirmed via direct inspection: 2436 <trkpt> points (after the
+  // fixture's trim), 2019-07-13 10:28:53Z to 11:10:19Z (2486s wall span),
+  // type "running".
   it('parses a real GPX track into a running activity with GPS, distance, and pace data', () => {
-    const [activity] = parseGPX(loadStub('3920815460.gpx'));
+    const [activity] = parseGPX(loadStub('gpx-run-1.gpx'));
     expect(activity).toBeDefined();
-    expect(activity!.activity.date).toBe('2020-08-16');
+    expect(activity!.activity.date).toBe('2019-07-13');
     expect(activity!.activity.sport).toBe('running');
     expect(activity!.activity.startTimeLabel).not.toBe('');
+    expect(activity!.activity.startUtc).toBe('2019-07-13T10:28:53.000Z');
     // Real elapsed wall time from the file's own first/last <time>.
-    expect(Math.round(activity!.activity.durationMin)).toBe(50);
+    expect(Math.round(activity!.activity.durationMin)).toBe(41);
     expect(activity!.activity.elapsedDurationMin).toBe(activity!.activity.durationMin);
     // Real distance should be a plausible run, not zero or absurd.
     expect(activity!.activity.distanceKm).toBeGreaterThan(5);
@@ -46,7 +49,7 @@ describe('parseGPX against real Strava-exported stub files', () => {
   });
 
   it('synthesizes real 1km auto-laps from the cumulative distance stream, feeding a real bestPace', () => {
-    const [activity] = parseGPX(loadStub('3920815460.gpx'));
+    const [activity] = parseGPX(loadStub('gpx-run-1.gpx'));
     expect(activity!.laps.length).toBeGreaterThan(5);
     // Every full lap should be a real ~1000m split (allowing the final
     // partial lap to be shorter, and a little slop either side since each

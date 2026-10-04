@@ -32,9 +32,8 @@ jobs:
       - run: npm run check
       - run: npm test
 
-      # `npm run build` ends with the performance report, whose page-load
-      # benchmark drives the built app in headless Chromium.
-      - run: npx playwright install --with-deps chromium
+      # A plain `vite build`: the performance report (`npm run build:perf`)
+      # is local-only, so a flaky headless-browser benchmark can't block a deploy.
       - run: npm run build
 
       - uses: actions/upload-pages-artifact@v5

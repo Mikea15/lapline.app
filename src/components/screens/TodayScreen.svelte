@@ -1,6 +1,7 @@
 <!-- TodayScreen.svelte - "am I on track, and am I recovered?" in one screen-height. -->
 <script lang="ts">
   import { activitiesStore } from '../../lib/stores.svelte';
+  import { effortsFill } from '../../lib/efforts-progress.svelte';
   import { settingsStore } from '../../lib/stores.svelte';
   import InfoLabel from '../InfoLabel.svelte';
   import ActivityLedger from '../ActivityLedger.svelte';
@@ -20,6 +21,7 @@
   import { formatDateDMY } from '../../lib/date-utils';
   import { acuteChronicRatio, runVolumeKm, weeklyLoadBuckets, trailingMean } from '../../lib/training-load';
   import { zoneSeconds } from '../../lib/today-kpis';
+  import type { Activity } from '../../lib/types';
 
   interface Props {
     rangeDays: number;
@@ -67,12 +69,26 @@
   let vo2Current = $state<Vo2MaxEstimate>({ value: null, activityId: null, date: null });
   let vo2Trend = $state<(number | null)[]>([]);
   let vo2Loading = $state(true);
+  // While the one-off best-efforts fill runs (lib/efforts-store.ts), rows it
+  // hasn't reached yet are left out rather than computed here, and the card
+  // says so until every run it looks at has one - newest first, so that is
+  // soon. It re-reads as the fill ticks.
+  let vo2Waiting = $state(false);
+  let vo2For: Activity[] | null = null;
+  let vo2Run = 0;
   $effect(() => {
-    vo2Loading = true;
-    const getDetail = (id: number) => activitiesStore.getDetail(id);
-    Promise.all([currentVo2Max(activities, getDetail), weeklyVo2MaxTrend(activities, getDetail, weeksShown)]).then(([v, t]) => {
+    void effortsFill.tick;
+    if (vo2For !== activities) {
+      vo2For = activities;
+      vo2Loading = true;
+    }
+    const run = ++vo2Run;
+    const efforts = activitiesStore.trackedEffortsForView();
+    Promise.all([currentVo2Max(activities, efforts.get), weeklyVo2MaxTrend(activities, efforts.get, weeksShown)]).then(([v, t]) => {
+      if (run !== vo2Run) return;
       vo2Current = v;
       vo2Trend = t;
+      vo2Waiting = efforts.missing() > 0;
       vo2Loading = false;
     });
   });
@@ -109,7 +125,7 @@
   <div class="kpi-grid">
     <div class="kpi-cards">
       <ChronicLoadCard series={chronicSeries} />
-      <Vo2MaxCard value={vo2Current.value} prior={vo2Prior} loading={vo2Loading} />
+      <Vo2MaxCard value={vo2Current.value} prior={vo2Prior} loading={vo2Loading} waiting={vo2Waiting} />
       <RunVolumeCard {activities} {rangeDays} {rangeLabel} totalKm={runVolRange} />
       <AerobicBaseCard zones={weeklyZoneSeconds} prevZones={prevZoneSeconds} {rangeLabel} />
       <TimeTrainedCard {activities} {rangeDays} {rangeLabel} />

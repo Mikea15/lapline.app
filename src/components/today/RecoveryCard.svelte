@@ -18,7 +18,8 @@
 
   let hasData = $derived(recovery.hoursRemaining !== null);
   let ready = $derived(recovery.hoursRemaining === 0);
-  let color = $derived(!hasData ? 'var(--ink-6)' : ready ? 'var(--positive)' : 'var(--caution)');
+  let ink = $derived(!hasData ? 'var(--ink-5)' : ready ? 'var(--positive-ink)' : 'var(--caution-ink)');
+  let color = $derived(!hasData ? 'var(--ink-5)' : ready ? 'var(--positive)' : 'var(--caution)');
   let progress = $derived(
     !hasData ? 0 : ready || !recovery.estimateHours ? 1 : Math.max(0, Math.min(1, 1 - recovery.hoursRemaining! / recovery.estimateHours))
   );
@@ -50,7 +51,7 @@
       {/if}
     </svg>
     <div class="text">
-      <span class="headline" style="color: {color};">{!hasData ? '—' : ready ? 'Ready' : 'Recovering'}</span>
+      <span class="headline" style="color: {ink};">{!hasData ? '—' : ready ? 'Ready' : 'Recovering'}</span>
       {#if hasData}
         <span class="line mono">{recovery.estimateHours} h estimate · {formatDateShort(recovery.sourceDate!)}</span>
       {:else}
@@ -102,7 +103,7 @@
     color: var(--ink-5);
   }
   .line b {
-    color: var(--accent);
+    color: var(--accent-ink);
     font-weight: var(--fw-semibold);
   }
 </style>

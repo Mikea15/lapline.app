@@ -7,7 +7,7 @@
      distance, and date. -->
 <script lang="ts">
   import { familyColorVar } from '../lib/sport-color';
-  import { formatDistance, type UnitSystem } from '../lib/units';
+  import { formatDistance, formatPoolDistance, type UnitSystem } from '../lib/units';
   import { formatDateDMY } from '../lib/date-utils';
   import type { MilestoneLadder, MilestoneEntry } from '../lib/records';
 
@@ -28,7 +28,7 @@
   }
 
   function formatEntry(ladder: MilestoneLadder, km: number): string {
-    return ladder.sport === 'pool-swim' ? `${Math.round(km * 1000)} m` : formatDistance(km, unitSystem, 2);
+    return ladder.sport === 'pool-swim' ? formatPoolDistance(km) : formatDistance(km, unitSystem, 2);
   }
 
   function entryTip(ladder: MilestoneLadder, entry: MilestoneEntry, rank: number): string {
@@ -116,10 +116,15 @@
   .ladder-row.clickable {
     cursor: pointer;
   }
+  /* A tap target on a phone; the rows are too close together for hit areas. */
+  @media (max-width: 720px) {
+    .ladder-row.clickable {
+      min-height: 44px;
+    }
+  }
   .ladder-row.clickable:hover,
   .ladder-row.clickable:focus-visible {
     background: var(--bg-well);
-    outline: none;
   }
   .chart-tooltip {
     position: absolute;

@@ -9,7 +9,7 @@
 <script lang="ts">
   import { touchHover } from '../lib/touch-hover';
   import type { Activity } from '../lib/types';
-  import { weeklyLoadBuckets, trailingMean, loadBand, LOAD_BAND_COLOR, LOAD_BAND_LABEL } from '../lib/training-load';
+  import { weeklyLoadBuckets, trailingMean, loadBand, MIN_HISTORY_DAYS, LOAD_BAND_COLOR, LOAD_BAND_INK, LOAD_BAND_LABEL } from '../lib/training-load';
   import { chartLabelFontSize, chartViewBoxHeight, axisLabelSlots } from '../lib/chart-scale';
   import { settingsStore } from '../lib/stores.svelte';
   import { addDays, bucketIndexForDate, bucketStartDate, formatDateRangeShort, formatDateShort } from '../lib/date-utils';
@@ -34,10 +34,19 @@
   let allLoads = $derived(allWeekly.map((w) => w.load));
   let chronicAll = $derived(trailingMean(allLoads, CHRONIC_WINDOW));
 
-  let weekly = $derived(allWeekly.slice(CHRONIC_WINDOW));
-  let chronic = $derived(chronicAll.slice(CHRONIC_WINDOW));
-  // Each week's own acute:chronic ratio (null with no chronic baseline yet).
-  let ratios = $derived(weekly.map((w, i) => (chronic[i]! > 0 ? w.load / chronic[i]! : null)));
+  // Start the axis at the first week with data (not a run of empty weeks),
+  // but never before the shown window.
+  let firstData = $derived(allLoads.findIndex((l) => l > 0));
+  let base = $derived(Math.max(CHRONIC_WINDOW, firstData));
+
+  let weekly = $derived(allWeekly.slice(base));
+  let chronic = $derived(chronicAll.slice(base));
+  // Each week's own acute:chronic ratio. Null with no chronic baseline yet,
+  // and for the first 4 weeks of history (same rule as Today's verdict),
+  // when the ratio is noise.
+  let ratios = $derived(
+    weekly.map((w, i) => (chronic[i]! > 0 && (firstData <= 0 || base + i - firstData >= MIN_HISTORY_DAYS / 7) ? w.load / chronic[i]! : null))
+  );
 
   let domainMax = $derived.by(() => {
     const peak = Math.max(1, ...weekly.map((w) => w.load), ...chronic);
@@ -95,7 +104,7 @@
   // collide. Counted back from the latest week so "this week" is always
   // labelled.
   function weekLabel(i: number): string {
-    return formatDateShort(bucketStartDate(i + CHRONIC_WINDOW, totalWeeks, 7));
+    return formatDateShort(bucketStartDate(i + base, totalWeeks, 7));
   }
   // Week labels are HTML at --fs-xs, so thin them in pixels: one label
   // ("30 Sep", mono ~0.6em a character) plus a gap per stride.
@@ -120,9 +129,18 @@
     const counts = new Array<number>(weekly.length).fill(0);
     for (const a of activities) {
       const idx = bucketIndexForDate(a.date, totalWeeks, 7);
-      if (idx !== null && idx >= CHRONIC_WINDOW) counts[idx - CHRONIC_WINDOW]! += 1;
+      if (idx !== null && idx >= base) counts[idx - base]! += 1;
     }
     return counts;
+  });
+
+  // Screen-reader summary of the latest week, plus a table of every week
+  // below the chart (the hover tooltip has no keyboard equivalent).
+  let a11yLabel = $derived.by(() => {
+    const n = weekly.length;
+    if (n === 0) return 'Weekly training load: no data yet';
+    const r = ratios[n - 1] ?? null;
+    return `Weekly training load, last ${n} weeks: this week ${Math.round(weekly[n - 1]!.load)}, 6-week average ${Math.round(chronic[n - 1] ?? 0)}${r === null ? ', ratio not available yet' : `, acute to chronic ratio ${r.toFixed(2)} (${LOAD_BAND_LABEL[loadBand(r)]})`}`;
   });
 
   let svgEl = $state<SVGSVGElement | null>(null);
@@ -140,7 +158,7 @@
     if (hoverIdx === null) return null;
     const w = weekly[hoverIdx];
     if (!w) return null;
-    const start = bucketStartDate(hoverIdx + CHRONIC_WINDOW, totalWeeks, 7);
+    const start = bucketStartDate(hoverIdx + base, totalWeeks, 7);
     const centerX = M_LEFT + (hoverIdx + 0.5) * slotW;
     const leftPct = (centerX / VB_W) * 100;
     return {
@@ -167,7 +185,7 @@
     class="load-chart-svg"
     style="--chart-label-fs: {labelFontSize}px"
     role="img"
-    aria-label="Weekly training load"
+    aria-label={a11yLabel}
     bind:this={svgEl}
     onmousemove={handleMove}
     onmouseleave={() => (hoverIdx = null)}
@@ -209,13 +227,31 @@
       {/if}
     {/if}
   </svg>
+  {#if weekly.length > 0}
+    <table class="sr-only">
+      <caption>Weekly training load data</caption>
+      <thead><tr><th scope="col">Week</th><th scope="col">Load</th><th scope="col">6-week average</th><th scope="col">Ratio</th><th scope="col">Sessions</th></tr></thead>
+      <tbody>
+        {#each weekly as w, i (i)}
+          {@const start = bucketStartDate(i + base, totalWeeks, 7)}
+          <tr>
+            <th scope="row">{formatDateRangeShort(start, addDays(start, 6))}</th>
+            <td>{Math.round(w.load)}</td>
+            <td>{Math.round(chronic[i] ?? 0)}</td>
+            <td>{ratios[i] === null ? 'n/a' : ratios[i]!.toFixed(2)}</td>
+            <td>{sessionsPerWeek[i] ?? 0}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  {/if}
   <div class="week-rows" style="margin-left: {(M_LEFT / VB_W) * 100}%; margin-right: {(M_RIGHT / VB_W) * 100}%;">
     <div class="ratio-strip">
       {#each ratios as r, i (i)}
         {@const band = r === null ? null : loadBand(r)}
         <span
           class="ratio-chip mono"
-          style={band ? `color: ${LOAD_BAND_COLOR[band]}; background: color-mix(in srgb, ${LOAD_BAND_COLOR[band]} ${showRatioText ? 16 : 45}%, var(--bg-panel));` : ''}
+          style={band ? `color: ${LOAD_BAND_INK[band]}; background: color-mix(in srgb, ${LOAD_BAND_COLOR[band]} ${showRatioText ? 16 : 45}%, var(--bg-panel));` : ''}
           title={r === null ? 'no baseline yet' : `ratio ${r.toFixed(2)}`}>{showRatioText ? (r === null ? '—' : r.toFixed(2)) : ''}</span
         >
       {/each}
@@ -248,7 +284,7 @@
       </div>
       <div class="chart-tooltip-row">
         <span class="chart-tooltip-label">42d chronic</span>
-        <span class="chart-tooltip-value" style="color: var(--accent);">{tooltip.chronic} au</span>
+        <span class="chart-tooltip-value" style="color: var(--accent-ink);">{tooltip.chronic} au</span>
       </div>
       <div class="chart-tooltip-row">
         <span class="chart-tooltip-label">Ratio</span>
@@ -256,7 +292,7 @@
           <span class="chart-tooltip-value">no baseline yet</span>
         {:else}
           {@const band = loadBand(tooltip.ratio)}
-          <span class="chart-tooltip-value" style="color: {LOAD_BAND_COLOR[band]};">{tooltip.ratio.toFixed(2)} · {LOAD_BAND_LABEL[band].toLowerCase()}</span>
+          <span class="chart-tooltip-value" style="color: {LOAD_BAND_INK[band]};">{tooltip.ratio.toFixed(2)} · {LOAD_BAND_LABEL[band].toLowerCase()}</span>
         {/if}
       </div>
       <div class="chart-tooltip-row">
@@ -297,7 +333,7 @@
     border-radius: 2px;
     font-size: var(--fs-xs);
     background: var(--bg-well);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   /* Each label is centred on its week, overflowing the narrow slot; the
      first and last are pinned to the chart's edges instead, so they can't
@@ -308,7 +344,7 @@
     min-width: 0;
     height: 1.4em;
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .week-label-text {
     position: absolute;

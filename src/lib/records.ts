@@ -3,9 +3,9 @@
 // the Records screen table, the Milestone Ladder, and the "PR"/"NEW" flags
 // shown on the Today ledger and Records table.
 
-import type { Activity, ActivityDetail } from './types';
+import type { Activity } from './types';
 import { sportFamily, type SportFamily } from './sport-color';
-import { bestTimeForDistance, bestDistanceForDuration } from './best-effort';
+import { effortDistanceForDuration, effortTimeForDistance, type GetEfforts } from './activity-efforts';
 
 export type RecordKind = 'pace-distance' | 'longest' | 'duration-distance' | 'fastest-avg-speed';
 
@@ -69,26 +69,30 @@ function isBetter(kind: RecordKind, candidate: number, current: number): boolean
 async function computeRecord(
   def: RecordDef,
   activities: Activity[],
-  getDetail: (id: number) => Promise<ActivityDetail | null>
+  getEfforts: GetEfforts
 ): Promise<RecordResult> {
   const relevant = activities.filter((a) => sportFamily(a.sport) === def.sport).sort((a, b) => a.date.localeCompare(b.date));
+  // Stream-based records read each activity's stored best efforts
+  // (lib/activity-efforts.ts) rather than its per-second records.
+  const fromStream = def.kind === 'pace-distance' || def.kind === 'duration-distance';
+  const efforts = fromStream ? await Promise.all(relevant.map(getEfforts)) : [];
 
   const history: RecordHistoryPoint[] = [];
   let best: number | null = null;
 
-  for (const act of relevant) {
+  for (const [i, act] of relevant.entries()) {
     let value: number | null = null;
     if (def.kind === 'longest') {
       value = act.distanceKm > 0 ? act.distanceKm : null;
     } else if (def.kind === 'fastest-avg-speed') {
       value = act.avgSpeedKmh > 0 ? act.avgSpeedKmh : null;
     } else {
-      const detail = await getDetail(act.id);
-      if (!detail || detail.distance.length < 2) continue;
+      const e = efforts[i];
+      if (!e) continue;
       if (def.kind === 'pace-distance') {
-        value = bestTimeForDistance(detail.distance, detail.t, def.targetM!);
+        value = effortTimeForDistance(e, def.targetM!);
       } else {
-        const meters = bestDistanceForDuration(detail.distance, detail.t, def.durationSec!);
+        const meters = effortDistanceForDuration(e, def.durationSec!);
         value = meters !== null ? meters / 1000 : null;
       }
     }
@@ -115,27 +119,25 @@ async function computeRecord(
   };
 }
 
-export async function computeAllRecords(
-  activities: Activity[],
-  getDetail: (id: number) => Promise<ActivityDetail | null>
-): Promise<RecordResult[]> {
-  return Promise.all(RECORD_DEFS.map((def) => computeRecord(def, activities, getDetail)));
+export async function computeAllRecords(activities: Activity[], getEfforts: GetEfforts): Promise<RecordResult[]> {
+  return Promise.all(RECORD_DEFS.map((def) => computeRecord(def, activities, getEfforts)));
 }
 
 // Same computation as computeAllRecords, but each record definition still
 // runs independently/concurrently (a pace-distance/duration-distance record
-// awaits getDetail() per matching activity - the slow part) - onRow fires
-// the moment each one resolves, in definition order, so a caller can reveal
+// awaits each matching activity's efforts, computed from its records if
+// they aren't stored yet) - onRow fires the moment each one resolves, in
+// definition order, so a caller can reveal
 // the Records table row by row instead of waiting for the slowest one to
 // gate every row at once.
 export async function computeRecordsStreaming(
   activities: Activity[],
-  getDetail: (id: number) => Promise<ActivityDetail | null>,
+  getEfforts: GetEfforts,
   onRow: (index: number, result: RecordResult) => void
 ): Promise<RecordResult[]> {
   return Promise.all(
     RECORD_DEFS.map((def, i) =>
-      computeRecord(def, activities, getDetail).then((r) => {
+      computeRecord(def, activities, getEfforts).then((r) => {
         onRow(i, r);
         return r;
       })

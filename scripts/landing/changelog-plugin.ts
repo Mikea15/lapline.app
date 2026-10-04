@@ -8,10 +8,10 @@
 // - every page (the app's too) gets lib/theme.ts's inline theme script in
 //   its <head>, so a light-theme page never flashes dark first.
 import type { Plugin } from 'vite';
-import { RELEASE_NOTES } from '../../src/lib/release-notes';
-import { CONTACT_EMAIL, DONATE_URL, X_URL } from '../../src/lib/links';
-import { PREPAINT_THEME_SCRIPT } from '../../src/lib/theme';
-import { logoTickSvg, WORDMARK_HTML } from '../../src/lib/logo';
+import { RELEASE_NOTES } from '../../src/lib/release-notes.ts';
+import { CONTACT_EMAIL, DONATE_URL, X_URL } from '../../src/lib/links.ts';
+import { PREPAINT_THEME_SCRIPT } from '../../src/lib/theme.ts';
+import { logoTickSvg, WORDMARK_HTML } from '../../src/lib/logo.ts';
 
 const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 

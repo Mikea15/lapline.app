@@ -2,9 +2,9 @@
 // Drives the built app (from `dist/`, via `vite preview`) with headless
 // Chromium and times real user-facing moments: cold boot, switching between
 // screens, importing .fit files, and opening an activity's detail view.
-// Run standalone with `npm run perf:page-load` (requires `npm run build`'s
-// `vite build` step to have produced dist/ first), or as part of
-// `npm run build` via report.ts.
+// Run standalone with `npm run perf:page-load` (requires dist/ from
+// `npm run build` first), or as part of `npm run build:perf` /
+// `npm run perf` via report.ts.
 
 import { readdirSync } from 'node:fs';
 import path from 'node:path';
@@ -75,10 +75,36 @@ async function runOneIteration(baseUrl: string, browser: Browser, samples: Recor
   // Import every stub .fit file - exercises the real worker-pool parse path.
   const stubFiles = readdirSync(STUB_DIR).filter((f) => f.toLowerCase().endsWith('.fit')).map((f) => path.join(STUB_DIR, f));
   await page.getByRole('button', { name: 'Sync' }).click();
-  const importStart = Date.now();
+  // Timed inside the page, from the file input's change event to the
+  // result heading entering the DOM. Timing it from Node with
+  // locator.waitFor() measured Playwright's polling instead: past the
+  // first ~270 ms it only checks every 500 ms, so the result jumped
+  // between ~850 and ~1350 ms on a few ms of real difference.
+  await page.evaluate(() => {
+    const input = document.querySelector<HTMLInputElement>('#fit-import');
+    if (!input) throw new Error('#fit-import not found');
+    const w = window as unknown as { __perfImportMs: Promise<number> };
+    w.__perfImportMs = new Promise<number>((resolve) => {
+      let start: number | null = null;
+      input.addEventListener('change', () => (start ??= performance.now()), { capture: true, once: true });
+      const done = /Import (complete|finished with errors)/;
+      const observer = new MutationObserver(() => {
+        if (start === null) return;
+        for (const h of document.querySelectorAll('h4')) {
+          if (done.test(h.textContent ?? '')) {
+            observer.disconnect();
+            resolve(performance.now() - start);
+            return;
+          }
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    });
+  });
   await page.locator('#fit-import').setInputFiles(stubFiles);
   await page.getByText(/Import (complete|finished with errors)/).waitFor({ timeout: 60_000 });
-  (samples[`import.${stubFiles.length}Files`] ??= []).push(Date.now() - importStart);
+  const importMs = await page.evaluate(() => (window as unknown as { __perfImportMs: Promise<number> }).__perfImportMs);
+  (samples[`import.${stubFiles.length}Files`] ??= []).push(Math.round(importMs));
   await page.getByRole('button', { name: 'Close' }).click();
 
   // Screen switches again now that real activities/records/charts exist.

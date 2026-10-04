@@ -101,7 +101,7 @@
       onblur={() => onHoverLap?.(null)}
     >
       <div class="km-tile-head">
-        <span class="km-tile-num mono">Km {i + 1}</span>
+        <span class="km-tile-num mono">Lap {i + 1}</span>
         <span class="km-tile-pace mono"
           >{meaningful && lap.avgPaceMinPerKm > 0
             ? showSpeed
@@ -158,7 +158,7 @@
     font-size: var(--fs-base);
   }
   .km-tile-num {
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .km-tile-pace {
     color: var(--ink-1);
@@ -176,7 +176,7 @@
     color: var(--ink-5);
   }
   .km-tile-delta-fast {
-    color: var(--accent);
+    color: var(--accent-ink);
   }
   .km-tile-mix {
     display: flex;

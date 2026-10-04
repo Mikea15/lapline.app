@@ -8,25 +8,30 @@
   import type { Activity } from '../lib/types';
   import { bucketIndexForDate, bucketStartDate, formatDateShort } from '../lib/date-utils';
   import { sportFamily } from '../lib/sport-color';
+  import { toDisplayDistance, distanceUnit, type UnitSystem } from '../lib/units';
   import { chartLabelFontSize, chartViewBoxHeight } from '../lib/chart-scale';
 
   interface Props {
     activities: Activity[];
     numWeeks: number;
     metric?: 'distance' | 'time';
+    unitSystem?: UnitSystem;
   }
 
-  let { activities, numWeeks, metric = 'time' }: Props = $props();
+  let { activities, numWeeks, metric = 'time', unitSystem = 'metric' }: Props = $props();
 
   let containerWidth = $state(0);
 
-  const SPORTS: { key: 'running' | 'cycling' | 'pool-swim'; color: string }[] = [
-    { key: 'running', color: 'var(--sport-running)' },
-    { key: 'cycling', color: 'var(--sport-cycling)' },
-    { key: 'pool-swim', color: 'var(--sport-pool-swim)' }
+  const SPORTS: { key: 'running' | 'cycling' | 'pool-swim'; color: string; label: string }[] = [
+    { key: 'running', color: 'var(--sport-running)', label: 'Run' },
+    { key: 'cycling', color: 'var(--sport-cycling)', label: 'Ride' },
+    { key: 'pool-swim', color: 'var(--sport-pool-swim)', label: 'Swim' }
   ];
 
-  let unitSuffix = $derived(metric === 'distance' ? 'km' : 'h');
+  // Swims share the distance unit of the other sports (km / mi) so the
+  // stacked bar stays one consistent quantity.
+  let unitSuffix = $derived(metric === 'distance' ? distanceUnit(unitSystem) : 'h');
+  const fmt = (v: number) => (v >= 100 ? v.toFixed(0) : v.toFixed(1));
 
   let weekly = $derived.by(() => {
     const buckets = Array.from({ length: numWeeks }, () => ({ running: 0, cycling: 0, 'pool-swim': 0 }) as Record<string, number>);
@@ -35,7 +40,7 @@
       if (idx === null) continue;
       const family = sportFamily(a.sport);
       if (family === 'running' || family === 'cycling' || family === 'pool-swim') {
-        buckets[idx]![family]! += metric === 'distance' ? a.distanceKm : a.durationMin / 60;
+        buckets[idx]![family]! += metric === 'distance' ? toDisplayDistance(a.distanceKm, unitSystem) : a.durationMin / 60;
       }
     }
     return buckets;
@@ -46,6 +51,10 @@
   // alongside each one so it can still be dated for the x-axis.
   let visible = $derived(
     weekly.map((w, idx) => ({ idx, w, total: SPORTS.reduce((s, sp) => s + w[sp.key]!, 0) })).filter((b) => b.total > 0)
+  );
+  // Legend: every sport that has volume in range, with its range total.
+  let legend = $derived(
+    SPORTS.map((sp) => ({ ...sp, total: weekly.reduce((s, w) => s + w[sp.key]!, 0) })).filter((l) => l.total > 0)
   );
   let totals = $derived(visible.map((b) => b.total));
   let trailingMeanTotal = $derived(
@@ -64,7 +73,7 @@
 
   let domainMax = $derived.by(() => {
     const peak = Math.max(1, ...totals);
-    const step = metric === 'distance' ? 5 : 1.5;
+    const step = metric === 'distance' ? (unitSystem === 'imperial' ? 3 : 5) : 1.5;
     return Math.ceil((peak * 1.1) / step) * step;
   });
 
@@ -94,13 +103,13 @@
 
   let stacks = $derived(
     visible.map((b, i) => {
-      const rects = SPORTS.map((sp) => ({ color: sp.color, v: b.w[sp.key]! })).filter((r) => r.v > 0);
-      const out: { x: number; y: number; h: number; color: string }[] = [];
+      const rects = SPORTS.map((sp) => ({ color: sp.color, label: sp.label, v: b.w[sp.key]! })).filter((r) => r.v > 0);
+      const out: { x: number; y: number; h: number; color: string; tip: string }[] = [];
       let yCursor = py(0);
       for (const r of rects) {
         const h = (r.v / domainMax) * PLOT_H;
         yCursor -= h;
-        out.push({ x: barX(i), y: yCursor, h, color: r.color });
+        out.push({ x: barX(i), y: yCursor, h, color: r.color, tip: `${r.label} · ${fmt(r.v)} ${unitSuffix} · week of ${formatDateShort(bucketStartDate(b.idx, numWeeks, 7))}` });
       }
       return out;
     })
@@ -121,9 +130,21 @@
   let xTicks = $derived(
     visible.map((b, i) => ({ i, label: formatDateShort(bucketStartDate(b.idx, numWeeks, 7)) })).filter((t) => t.i % xTickStep === 0)
   );
+
+  let a11yLabel = $derived(
+    `Weekly training volume by sport, ${visible.length} active weeks: ` +
+      (legend.map((l) => `${l.label} ${fmt(l.total)} ${unitSuffix}`).join(', ') || 'none')
+  );
 </script>
 
 <div class="volume-wrap" bind:clientWidth={containerWidth}>
+  {#if legend.length > 0}
+    <div class="volume-legend">
+      {#each legend as l (l.key)}
+        <span class="panel-meta"><span class="zone-key-swatch" style="background: {l.color}; display: inline-block; margin-right: var(--space-2);"></span>{l.label} · {fmt(l.total)} {unitSuffix}</span>
+      {/each}
+    </div>
+  {/if}
   {#if visible.length === 0}
     <div class="empty-state" style="padding: var(--space-10) var(--space-4);">No activity in this range.</div>
   {:else}
@@ -132,7 +153,7 @@
       class="volume-svg"
       style="--chart-label-fs: {labelFontSize}px"
       role="img"
-      aria-label="Weekly training volume by sport"
+      aria-label={a11yLabel}
     >
       {#each yTicks as t (t)}
         <line x1={M_LEFT} y1={py(t)} x2={VB_W - M_RIGHT} y2={py(t)} stroke="var(--line-soft)" stroke-width="1" vector-effect="non-scaling-stroke" />
@@ -141,7 +162,7 @@
 
       {#each stacks as stack, i (i)}
         {#each stack as r, ri (ri)}
-          <rect x={r.x} y={r.y} width={barW} height={r.h} fill={r.color} />
+          <rect x={r.x} y={r.y} width={barW} height={r.h} fill={r.color}><title>{r.tip}</title></rect>
         {/each}
       {/each}
 
@@ -151,12 +172,31 @@
         <text x={M_LEFT + (t.i + 0.5) * slotW} y={VB_H - 6} text-anchor="middle" class="chart-axis-label">{t.label}</text>
       {/each}
     </svg>
+    <table class="sr-only">
+      <caption>Weekly volume by sport ({unitSuffix})</caption>
+      <thead><tr><th scope="col">Week of</th>{#each SPORTS as sp (sp.key)}<th scope="col">{sp.label}</th>{/each}<th scope="col">Total</th></tr></thead>
+      <tbody>
+        {#each visible as b (b.idx)}
+          <tr>
+            <th scope="row">{formatDateShort(bucketStartDate(b.idx, numWeeks, 7))}</th>
+            {#each SPORTS as sp (sp.key)}<td>{fmt(b.w[sp.key]!)}</td>{/each}
+            <td>{fmt(b.total)}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
   {/if}
 </div>
 
 <style>
   .volume-wrap {
     width: 100%;
+  }
+  .volume-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    margin-bottom: var(--space-3);
   }
   .volume-svg {
     width: 100%;

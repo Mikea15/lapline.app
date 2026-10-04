@@ -38,3 +38,41 @@ export function monthGridWeeks(year: number, month: number): string[][] {
 export function isInMonth(dateStr: string, year: number, month: number): boolean {
   return dateStr.startsWith(`${year}-${pad2(month)}`);
 }
+
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export interface MonthCompareWindow {
+  /** Inclusive date bounds of the previous-month slice to compare against. */
+  prevStart: string;
+  prevEnd: string;
+  /** True when the viewed month is still in progress (month-to-date). */
+  partial: boolean;
+  /** Chip suffix after "vs ": "Sep" for a whole month, "1–3 Sep" for month-to-date. */
+  label: string;
+}
+
+// What the previous month should be compared against. A finished month is
+// compared with the whole previous month; the month in progress is compared
+// month-to-date with the same days of last month (so 3 Oct is set against
+// 1-3 Sep, not all of Sep). Null for a month that hasn't started yet.
+export function monthCompareWindow(year: number, month: number, today: string): MonthCompareWindow | null {
+  const key = `${year}-${pad2(month)}`;
+  const prevYear = month === 1 ? year - 1 : year;
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevKey = `${prevYear}-${pad2(prevMonth)}`;
+  const prevDays = new Date(prevYear, prevMonth, 0).getDate();
+  const prevName = SHORT_MONTHS[prevMonth - 1]!;
+
+  if (`${key}-01` > today) return null;
+  if (!today.startsWith(key)) {
+    return { prevStart: `${prevKey}-01`, prevEnd: `${prevKey}-${pad2(prevDays)}`, partial: false, label: prevName };
+  }
+  const day = Number(today.slice(8, 10));
+  const throughDay = Math.min(day, prevDays);
+  return {
+    prevStart: `${prevKey}-01`,
+    prevEnd: `${prevKey}-${pad2(throughDay)}`,
+    partial: true,
+    label: throughDay === 1 ? `1 ${prevName}` : `1–${throughDay} ${prevName}`
+  };
+}

@@ -7,6 +7,10 @@ Thumbs.db
 # Per-build performance reports (scripts/perf/report.ts) - regenerated
 # every build, not meant to be committed history.
 reports/
+.claude/worktrees/
+
+# Secret seed for scripts/demo/anonymise.ts - never committed.
+stub-data/anonymise-seed.txt
 
 # Private real recordings - never published (see scripts/demo/).
 stub-data/

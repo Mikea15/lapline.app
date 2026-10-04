@@ -14,10 +14,13 @@
     formatValue: (v: number) => string;
     color?: string;
     zeroLine?: boolean; // draws a reference line at y=0 (e.g. Performance Condition's +/- scale)
+    // Fixed y-range (e.g. a trimmed altitude range). The line is clamped to it
+    // rather than stretching the axis to outliers like GPS altitude wander.
+    domain?: { min: number; max: number } | null;
     syncSeconds?: number | null; // bindable shared scrub position, seconds
   }
 
-  let { t, values, formatTime, formatValue, color = 'var(--accent)', zeroLine = false, syncSeconds = $bindable(null) }: Props = $props();
+  let { t, values, formatTime, formatValue, color = 'var(--accent)', zeroLine = false, domain = null, syncSeconds = $bindable(null) }: Props = $props();
 
   const VB_W = 400;
   const VB_H = 100;
@@ -36,6 +39,7 @@
   });
 
   let range = $derived.by(() => {
+    if (domain) return domain;
     if (samples.length === 0) return { min: 0, max: 1 };
     const vals = samples.map((s) => s.v);
     let min = Math.min(...vals);
@@ -56,7 +60,7 @@
   }
   function py(v: number): number {
     const span = range.max - range.min || 1;
-    const frac = (v - range.min) / span;
+    const frac = Math.max(0, Math.min(1, (v - range.min) / span));
     return PAD_TOP + PLOT_H - frac * PLOT_H;
   }
 
@@ -66,6 +70,11 @@
       ? `${linePath} L${px(samples[samples.length - 1]!.sec).toFixed(1)},${PAD_TOP + PLOT_H} L${px(samples[0]!.sec).toFixed(1)},${PAD_TOP + PLOT_H} Z`
       : ''
   );
+
+  // Real time ticks across the whole activity span (first/last pinned to
+  // the edges), so the x-axis reads as time and never as a value label.
+  const TICK_COUNT = 5;
+  let ticks = $derived(Array.from({ length: TICK_COUNT }, (_, i) => tMin + (tSpan * i) / (TICK_COUNT - 1)));
 
   let wrapEl = $state<HTMLDivElement | null>(null);
 
@@ -99,8 +108,12 @@
 {#if samples.length < 2}
   <div class="empty-state">No data for this activity.</div>
 {:else}
-  <div class="stream-chart" bind:this={wrapEl}>
-    <div class="stream-chart-max mono">{formatValue(range.max)}</div>
+  <div class="stream-chart">
+    <div class="stream-chart-ylabels mono" aria-hidden="true">
+      <span>{formatValue(range.max)}</span>
+      <span class="stream-chart-min">{formatValue(range.min)}</span>
+    </div>
+    <div class="stream-chart-plot" bind:this={wrapEl}>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <svg use:touchHover viewBox="0 0 {VB_W} {VB_H}" preserveAspectRatio="none" class="stream-svg" role="img" aria-label="Real values over the course of the activity, ranging {formatValue(range.min)} to {formatValue(range.max)}" onmousemove={handleMove} onmouseleave={handleLeave}>
       {#if zeroLine}
@@ -123,10 +136,10 @@
            percentage since the chart's width is responsive. -->
       <div class="stream-chart-dot" style="left: {(px(hoverPoint.sec) / VB_W) * 100}%; top: {py(hoverPoint.v)}px;"></div>
     {/if}
-    <div class="stream-chart-axis mono">
-      <span>{formatTime(tMin)}</span>
-      <span class="stream-chart-min">{formatValue(range.min)}</span>
-      <span>{formatTime(tMax)}</span>
+    <div class="stream-chart-axis mono" aria-hidden="true">
+      {#each ticks as tick, i (i)}
+        <span class="tick" class:first={i === 0} class:last={i === TICK_COUNT - 1} style="left: {(i / (TICK_COUNT - 1)) * 100}%;">{formatTime(tick)}</span>
+      {/each}
     </div>
     {#if hoverPoint}
       <div class="chart-tooltip" style="left: {(px(hoverPoint.sec) / VB_W) * 100}%; top: {py(hoverPoint.v)}px;">
@@ -136,19 +149,36 @@
         </div>
       </div>
     {/if}
+    </div>
   </div>
 {/if}
 
 <style>
   .stream-chart {
     position: relative;
+    display: flex;
+    gap: var(--space-2);
   }
-  .stream-chart-max {
-    position: absolute;
-    top: 0;
-    left: 0;
+  /* Value labels sit in their own gutter on the y-axis side, aligned to
+     the top and bottom of the plot, so they can't be mistaken for time
+     ticks and never overlap the line. */
+  .stream-chart-ylabels {
+    flex: 0 0 auto;
+    min-width: 5ch;
+    height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-end;
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    line-height: 1;
+    color: var(--ink-5);
+    white-space: nowrap;
+  }
+  .stream-chart-plot {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
   }
   .stream-svg {
     width: 100%;
@@ -157,14 +187,29 @@
     cursor: crosshair;
   }
   .stream-chart-axis {
-    display: flex;
-    justify-content: space-between;
+    position: relative;
+    height: 1.4em;
     margin-top: var(--space-2);
     font-size: var(--fs-xs);
-    color: var(--ink-6);
-  }
-  .stream-chart-min {
     color: var(--ink-5);
+  }
+  .tick {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+    white-space: nowrap;
+  }
+  .tick.first {
+    transform: none;
+  }
+  .tick.last {
+    transform: translateX(-100%);
+  }
+  @media (max-width: 720px) {
+    .tick:nth-child(2),
+    .tick:nth-child(4) {
+      display: none;
+    }
   }
   .stream-chart-dot {
     position: absolute;

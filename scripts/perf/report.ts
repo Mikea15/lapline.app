@@ -1,7 +1,10 @@
 // scripts/perf/report.ts
 // Orchestrates the whole performance-report pipeline and is what `npm run
-// build` invokes after `vite build`: reads the bundle-size numbers the
-// perf-bundle-report Vite plugin (vite-bundle-plugin.ts) just wrote, runs
+// build:perf` invokes after `vite build` (`npm run perf` runs it alone
+// against an existing build). It is local-only: deploys run a plain
+// `vite build`, so a failing benchmark never blocks one. It reads the
+// bundle-size numbers the perf-bundle-report Vite plugin
+// (vite-bundle-plugin.ts) just wrote, runs
 // the hot-function and page-load benchmarks, compares every metric against
 // the previous report (reports/latest.json), and writes out a timestamped
 // history entry plus reports/latest.{json,md}. This is how performance

@@ -113,10 +113,10 @@
     min-width: 0;
     text-align: center;
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .label.peak {
-    color: var(--sport-running);
+    color: var(--accent-ink);
     font-weight: var(--fw-semibold);
   }
 </style>

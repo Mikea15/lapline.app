@@ -25,3 +25,33 @@ export function createThrottle(minIntervalMs: number) {
     return run;
   };
 }
+
+// Wraps a lookup whose `null` result means "failed for now, try again later"
+// (offline, rate-limited, data not published yet) as opposed to a real
+// answer. Concurrent calls for the same key share one request, and a key
+// that just came back null isn't re-queried until cooldownMs has passed, so
+// reopening an activity (or the screen re-running its effect) doesn't hammer
+// the provider. Session-only: a page reload retries straight away.
+export function createRetryGate<T>(cooldownMs: number) {
+  const inFlight = new Map<string, Promise<T | null>>();
+  const failedAt = new Map<string, number>();
+
+  return function gated(key: string, fn: () => Promise<T | null>): Promise<T | null> {
+    const pending = inFlight.get(key);
+    if (pending) return pending;
+    const last = failedAt.get(key);
+    if (last !== undefined && Date.now() - last < cooldownMs) return Promise.resolve(null);
+
+    const run = fn().then((result) => {
+      if (result === null) failedAt.set(key, Date.now());
+      else failedAt.delete(key);
+      return result;
+    });
+    inFlight.set(key, run);
+    const clear = () => {
+      inFlight.delete(key);
+    };
+    run.then(clear, clear);
+    return run;
+  };
+}

@@ -68,7 +68,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    fill: var(--ink-6);
+    fill: var(--ink-5);
   }
   .radial-gauge-sublabel {
     font-size: var(--fs-xs);

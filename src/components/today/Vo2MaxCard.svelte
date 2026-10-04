@@ -5,6 +5,7 @@
 <script lang="ts">
   import KpiCard from './KpiCard.svelte';
   import Skeleton from '../Skeleton.svelte';
+  import EffortsFillNote from '../EffortsFillNote.svelte';
   import { settingsStore } from '../../lib/stores.svelte';
   import { vo2BandBounds, vo2Band, vo2ScalePosition, VO2_BANDS, type Vo2Band } from '../../lib/today-kpis';
 
@@ -13,16 +14,18 @@
     /** The estimate 4 weeks ago, for the trend marker and chip. */
     prior: number | null;
     loading: boolean;
+    /** The one-off best-efforts fill hasn't reached every run the estimate reads yet. */
+    waiting?: boolean;
   }
 
-  let { value, prior, loading }: Props = $props();
+  let { value, prior, loading, waiting = false }: Props = $props();
 
   const BAND: Record<Vo2Band, { name: string; short: string; color: string }> = {
-    poor: { name: 'Poor', short: 'Poor', color: 'var(--alert)' },
-    fair: { name: 'Fair', short: 'Fair', color: 'var(--caution)' },
-    good: { name: 'Good', short: 'Good', color: 'var(--positive)' },
-    excellent: { name: 'Excellent', short: 'Excel.', color: 'var(--accent)' },
-    superior: { name: 'Superior', short: 'Super.', color: 'var(--zone-1)' }
+    poor: { name: 'Poor', short: 'Poor', color: 'var(--alert-ink)' },
+    fair: { name: 'Fair', short: 'Fair', color: 'var(--caution-ink)' },
+    good: { name: 'Good', short: 'Good', color: 'var(--positive-ink)' },
+    excellent: { name: 'Excellent', short: 'Excel.', color: 'var(--accent-ink)' },
+    superior: { name: 'Superior', short: 'Super.', color: 'var(--zone-1-ink)' }
   };
 
   let age = $derived(settingsStore.getAge());
@@ -53,16 +56,18 @@
   label="VO₂ max est."
   tip="Estimated aerobic fitness (ml of oxygen per kg per minute) from your fastest hard run (3.5-90 min) in the last 90 days. Rated against Cooper Institute norms for your age and sex."
   edge="var(--accent)"
-  badge={band ? { text: BAND[band].name, color: BAND[band].color } : null}
-  chip={loading ? null : chip}
-  caption={loading ? '' : caption}
+  badge={band && !waiting ? { text: BAND[band].name, color: BAND[band].color } : null}
+  chip={loading || waiting ? null : chip}
+  caption={loading || waiting ? '' : caption}
 >
   {#if loading}
     <div class="kpi-value-row"><Skeleton width="96px" height="32px" /></div>
     <Skeleton width="100%" height="34px" />
+  {:else if waiting}
+    <EffortsFillNote compact height="70px" />
   {:else}
     <div class="kpi-value-row">
-      <span class="kpi-value" style="color: var(--accent);">{value ?? '—'}</span>
+      <span class="kpi-value" style="color: var(--accent-ink);">{value ?? '—'}</span>
       <span class="kpi-unit">ml/kg/min</span>
     </div>
     {#if bounds && nowPos !== null}
@@ -111,7 +116,7 @@
     white-space: nowrap;
   }
   .mark-label.now {
-    color: var(--accent);
+    color: var(--accent-ink);
     font-weight: var(--fw-semibold);
   }
   .track {
@@ -163,7 +168,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
     text-align: center;
   }
   .name:first-child {

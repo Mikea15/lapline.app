@@ -85,6 +85,14 @@
 
   let hasData = $derived(allValues.length > 0);
 
+  const LONG_LABELS = ['1 minute', '5 minutes', '10 minutes', '20 minutes', '30 minutes', '45 minutes', '60 minutes'];
+  let a11yLabel = $derived(
+    `Critical pace curve, best sustained pace by duration, current ${rangeLabel} against previous ${rangeLabel}` +
+      (delta60min !== null ? `: ${Math.abs(delta60min).toFixed(1)}% ${delta60min >= 0 ? 'faster' : 'slower'} over 60 minutes` : '') +
+      '. Full values in the table below.'
+  );
+  const paceCell = (p?: { paceMinPerKm: number | null }) => (p?.paceMinPerKm ? formatPace(p.paceMinPerKm, unitSystem) : 'n/a');
+
   // Hit-test columns for the tooltip: one per duration bucket, boundaries at
   // the midpoint between adjacent x positions so hovering anywhere near a
   // point (not just exactly on its dot) picks it up.
@@ -126,7 +134,7 @@
   <div class="empty-state" style="padding: var(--space-10) var(--space-4);">Not enough running history yet.</div>
 {:else}
   <div class="curve-wrap" bind:clientWidth={containerWidth}>
-    <svg use:touchHover viewBox="0 0 {VB_W} {VB_H}" class="curve-svg" style="--chart-label-fs: {labelFontSize}px" role="img" aria-label="Critical pace curve">
+    <svg use:touchHover viewBox="0 0 {VB_W} {VB_H}" class="curve-svg" style="--chart-label-fs: {labelFontSize}px" role="img" aria-label={a11yLabel}>
       {#each [0, 0.33, 0.66, 1] as f (f)}
         <line x1="0" y1={M_TOP + f * PLOT_H} x2={VB_W} y2={M_TOP + f * PLOT_H} stroke="var(--line-soft)" stroke-width="1" vector-effect="non-scaling-stroke" />
       {/each}
@@ -167,6 +175,15 @@
         />
       {/each}
     </svg>
+    <table class="sr-only">
+      <caption>Best sustained pace by duration</caption>
+      <thead><tr><th scope="col">Duration</th><th scope="col">Current {rangeLabel}</th><th scope="col">Previous {rangeLabel}</th></tr></thead>
+      <tbody>
+        {#each LONG_LABELS as l, i (i)}
+          <tr><th scope="row">{l}</th><td>{paceCell(curves.thisRange[i])}</td><td>{paceCell(curves.previousRange[i])}</td></tr>
+        {/each}
+      </tbody>
+    </table>
 
     {#if hoverIdx !== null && hoverY !== null}
       <div
@@ -188,7 +205,7 @@
           <span class="chart-tooltip-value">{curves.previousRange[hoverIdx]?.paceMinPerKm != null ? formatPace(curves.previousRange[hoverIdx]!.paceMinPerKm!, unitSystem) : '—'}</span>
         </div>
         {#if hoverDeltaPct !== null}
-          <div class="chart-tooltip-delta" style="color: {hoverDeltaPct >= 0 ? 'var(--positive)' : 'var(--caution)'};">
+          <div class="chart-tooltip-delta" style="color: {hoverDeltaPct >= 0 ? 'var(--positive-ink)' : 'var(--caution-ink)'};">
             {Math.abs(hoverDeltaPct).toFixed(1)}% {hoverDeltaPct >= 0 ? 'faster' : 'slower'}
           </div>
         {/if}
@@ -199,7 +216,7 @@
     <span class="zone-key-item mono"><span class="zone-key-swatch" style="background: var(--neutral-line);"></span>prev {rangeLabel}</span>
     <span class="zone-key-item mono"><span class="zone-key-swatch" style="background: var(--accent);"></span>current {rangeLabel}</span>
     {#if delta60min !== null}
-      <span class="mono" style="margin-left: auto; color: var(--accent);">{Math.abs(delta60min).toFixed(1)}% {delta60min >= 0 ? 'faster' : 'slower'} at 60 min</span>
+      <span class="mono" style="margin-left: auto; color: var(--accent-ink);">{Math.abs(delta60min).toFixed(1)}% {delta60min >= 0 ? 'faster' : 'slower'} at 60 min</span>
     {/if}
   </div>
   <p class="curve-explainer">
@@ -233,7 +250,7 @@
     margin: var(--space-5) 0 0;
     font-size: var(--fs-sm);
     line-height: 1.5;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .chart-tooltip {
     position: absolute;

@@ -17,7 +17,7 @@
   import { activityLoad } from '../../lib/training-load';
   import { sportColorVar, sportFamily, familyColorVar, familyLabel, formatSport, type SportFamily } from '../../lib/sport-color';
   import { ZONE_COLORS } from '../../lib/hr-zones';
-  import { formatDistance, toDisplayDistance, distanceUnit } from '../../lib/units';
+  import { formatDistance, formatPoolDistance, toDisplayDistance, distanceUnit } from '../../lib/units';
   import { formatClock, todayStr } from '../../lib/date-utils';
   import Icon from '../Icon.svelte';
   import InfoLabel from '../InfoLabel.svelte';
@@ -129,7 +129,7 @@
     const family = sportFamily(a.sport);
     const time = formatClock(a.durationMin * 60);
     if (family === 'cardio' || a.distanceKm <= 0) return [time];
-    const dist = family === 'pool-swim' ? `${Math.round(a.distanceKm * 1000)} m` : formatDistance(a.distanceKm, unitSystem, 2);
+    const dist = family === 'pool-swim' ? formatPoolDistance(a.distanceKm) : formatDistance(a.distanceKm, unitSystem, 2);
     return [time, dist];
   }
 
@@ -220,7 +220,9 @@
     weeks.map((days) => ({
       days,
       dayCells: days.map(buildDay),
-      rollup: buildWeekRollup(days)
+      rollup: buildWeekRollup(days),
+      // A week that hasn't begun has nothing to total - its rollup is left blank.
+      future: days[0]! > today
     }))
   );
 
@@ -385,19 +387,21 @@
               {/each}
               <!-- svelte-ignore a11y_no_static_element_interactions -->
               <div class="cal-rollup" role="presentation" onmouseenter={() => (hoveredWeek = weekIndex)} onmouseleave={() => (hoveredWeek = null)}>
-                <div class="cal-rollup-hours">
-                  <span class="mono">{week.rollup.hoursLabel}</span>
-                  <span class="cal-rollup-hours-unit mono">h</span>
-                </div>
-                <div class="cal-rollup-row mono">
-                  <span>{formatDistance(week.rollup.km, unitSystem, 1)}</span>
-                  <span>{Math.round(week.rollup.loadAu)} au</span>
-                </div>
-                <div class="cal-rollup-row mono">
-                  <span>{week.rollup.avgLabel} / session</span>
-                  <span>{Math.round(week.rollup.calories)} kcal</span>
-                </div>
-                <div class="cal-rollup-sessions mono">{week.rollup.sessionCount} {week.rollup.sessionCount === 1 ? 'session' : 'sessions'}</div>
+                {#if !week.future}
+                  <div class="cal-rollup-hours">
+                    <span class="mono">{week.rollup.hoursLabel}</span>
+                    <span class="cal-rollup-hours-unit mono">h</span>
+                  </div>
+                  <div class="cal-rollup-row mono">
+                    <span>{formatDistance(week.rollup.km, unitSystem, 1)}</span>
+                    <span>{Math.round(week.rollup.loadAu)} au</span>
+                  </div>
+                  <div class="cal-rollup-row mono">
+                    <span>{week.rollup.avgLabel} / session</span>
+                    <span>{Math.round(week.rollup.calories)} kcal</span>
+                  </div>
+                  <div class="cal-rollup-sessions mono">{week.rollup.sessionCount} {week.rollup.sessionCount === 1 ? 'session' : 'sessions'}</div>
+                {/if}
               </div>
             </div>
           {/each}
@@ -409,7 +413,7 @@
           <div class="cal-wl-week" bind:this={weekListRowEls[weekIndex]}>
             <div class="cal-wl-week-head">
               <span class="cal-wl-week-label mono">Week of {week.rollup.gutterLabel}</span>
-              <span class="cal-wl-week-stats mono">{week.rollup.hoursLabel} h · {formatDistance(week.rollup.km, unitSystem, 1)} · {Math.round(week.rollup.loadAu)} au · {week.rollup.sessionCount} {week.rollup.sessionCount === 1 ? 'session' : 'sessions'}</span>
+              {#if !week.future}<span class="cal-wl-week-stats mono">{week.rollup.hoursLabel} h · {formatDistance(week.rollup.km, unitSystem, 1)} · {Math.round(week.rollup.loadAu)} au · {week.rollup.sessionCount} {week.rollup.sessionCount === 1 ? 'session' : 'sessions'}</span>{/if}
             </div>
             {#each week.dayCells as cell, dayIndex (cell.date)}
               <div class="cal-wl-day" class:cal-wl-day-today={cell.isToday} class:cal-wl-day-out={!cell.inMonth}>
@@ -520,7 +524,6 @@
     background: var(--bg-row-hover);
   }
   .cal-nav-pill:focus-visible {
-    outline: none;
     border-color: var(--accent);
     color: var(--ink-1);
   }
@@ -622,7 +625,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .cal-head-week {
     border-left: 1px solid var(--line-soft);
@@ -633,7 +636,7 @@
     justify-content: center;
     padding: var(--space-5) 0;
     font-size: var(--fs-xs);
-    color: var(--ink-7);
+    color: var(--ink-5);
   }
 
   .cal-day {
@@ -664,28 +667,28 @@
     color: var(--ink-2);
   }
   .cal-day-num.accent {
-    color: var(--accent);
+    color: var(--accent-ink);
   }
   .cal-day-num.future {
     color: var(--ink-4);
   }
   .cal-day-num.out {
-    color: var(--ink-7);
+    color: var(--ink-5);
   }
   .cal-day-tag {
     font-weight: var(--fw-semibold);
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-7);
+    color: var(--ink-5);
   }
   .cal-day-tag.accent {
-    color: var(--accent);
+    color: var(--accent-ink);
   }
   .cal-day-load {
     margin-left: auto;
     font-size: var(--fs-xs);
-    color: var(--ink-7);
+    color: var(--ink-5);
   }
 
   .cal-chip {
@@ -703,7 +706,6 @@
     border-color: var(--ink-6);
   }
   .cal-chip:focus-visible {
-    outline: 1px solid var(--accent);
     outline-offset: 1px;
   }
   .cal-chip-bar {
@@ -737,7 +739,7 @@
   }
   .cal-chip-more {
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
 
   .cal-zone-strip {
@@ -765,7 +767,7 @@
   }
   .cal-rollup-hours-unit {
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .cal-rollup-row {
     display: flex;
@@ -773,13 +775,13 @@
     white-space: nowrap;
     justify-content: space-between;
     font-size: var(--fs-xs);
-    color: var(--ink-7);
+    color: var(--ink-5);
   }
   .cal-rollup-sessions {
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
 
   /* Below ~1080px the 7-column grid's day columns drop under ~110px and
@@ -814,7 +816,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .cal-wl-week-label {
     flex: none;
@@ -849,7 +851,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .cal-wl-sessions {
     display: flex;

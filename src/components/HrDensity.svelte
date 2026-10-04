@@ -91,13 +91,12 @@
   .hr-density-row:hover,
   .hr-density-row:focus-visible {
     background: var(--bg-row-hover);
-    outline: none;
   }
   .hr-density-label {
     width: 24px;
     flex-shrink: 0;
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
     text-align: right;
   }
   .hr-density-track {
@@ -116,7 +115,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
     text-align: center;
   }
   .chart-tooltip {

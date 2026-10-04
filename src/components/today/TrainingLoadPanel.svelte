@@ -6,7 +6,7 @@
   import InfoLabel from '../InfoLabel.svelte';
   import TrainingLoadChart from '../TrainingLoadChart.svelte';
   import type { Activity } from '../../lib/types';
-  import { loadBand, LOAD_BAND_COLOR, LOAD_BAND_LABEL, type AcuteChronic, type LoadBand } from '../../lib/training-load';
+  import { loadBand, LOAD_BAND_COLOR, LOAD_BAND_INK, LOAD_BAND_LABEL, type AcuteChronic, type LoadBand } from '../../lib/training-load';
 
   interface Props {
     activities: Activity[];
@@ -28,11 +28,14 @@
   const TOTAL_WEIGHT = BANDS.reduce((s, b) => s + b.weight, 0);
 
   let hasRatio = $derived(ratio.chronic42d > 0);
-  let band = $derived(hasRatio ? loadBand(ratio.ratio) : null);
-  let color = $derived(band ? LOAD_BAND_COLOR[band] : 'var(--ink-5)');
+  // Under ~4 weeks of history the ratio is noise (a few days of training
+  // against a near-empty baseline reads as a spike): show no verdict.
+  let ready = $derived(hasRatio && ratio.hasHistory);
+  let band = $derived(ready ? loadBand(ratio.ratio) : null);
+  let color = $derived(band ? LOAD_BAND_INK[band] : 'var(--ink-5)');
 
   let markerPct = $derived.by(() => {
-    if (!hasRatio) return null;
+    if (!ready) return null;
     const r = Math.min(2, Math.max(0, ratio.ratio));
     let before = 0;
     for (const b of BANDS) {
@@ -44,6 +47,7 @@
 
   let advice = $derived.by(() => {
     if (!hasRatio) return 'Not enough training history yet for a ratio.';
+    if (!ready) return 'Needs 4 weeks of history';
     const r = ratio.ratio;
     if (band === 'detrain') return 'Below your baseline — fitness is drifting. Build back up gradually.';
     if (band === 'productive') return r >= 1.2 ? 'Top of the productive band — hold next week flat.' : r < 1 ? 'Low in the productive band — room to build next week.' : 'In the productive band — steady progression.';
@@ -59,7 +63,7 @@
       <p class="panel-prose">Weekly load against your 42-day chronic baseline. The strip below is the ratio between them.</p>
     </div>
     <div class="tl-ratio-value">
-      <span class="num mono" style="color: {color};">{hasRatio ? ratio.ratio.toFixed(2) : '—'}</span>
+      <span class="num mono" style="color: {color};">{ready ? ratio.ratio.toFixed(2) : '—'}</span>
       <InfoLabel
         class="tl-ratio-label"
         text="Acute : chronic"
@@ -78,7 +82,7 @@
       </div>
       <div class="names">
         {#each BANDS as b (b.band)}
-          <span class="name" style="flex: {b.weight};{b.band === band ? ` color: ${LOAD_BAND_COLOR[b.band]};` : ''}">{b.label}</span>
+          <span class="name" style="flex: {b.weight};{b.band === band ? ` color: ${LOAD_BAND_INK[b.band]};` : ''}">{b.label}</span>
         {/each}
       </div>
       <p class="advice mono" style="color: {color};">{advice}</p>
@@ -92,7 +96,7 @@
       <div class="key-item">
         <div class="key-head mono">
           <span class="key-swatch" style="background: {LOAD_BAND_COLOR[b.band]};"></span>
-          <span class="key-name" style="color: {LOAD_BAND_COLOR[b.band]};">{b.label}</span>
+          <span class="key-name" style="color: {LOAD_BAND_INK[b.band]};">{b.label}</span>
           <span class="key-range">{b.range}</span>
         </div>
         <p class="key-meaning">{b.meaning}</p>
@@ -135,7 +139,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .tl-bands {
     min-width: 0;
@@ -177,7 +181,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
     white-space: nowrap;
   }
   .advice {
@@ -248,6 +252,6 @@
     padding-top: var(--space-6);
     border-top: 1px solid var(--line-soft);
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
 </style>

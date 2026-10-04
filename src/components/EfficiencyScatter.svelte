@@ -6,6 +6,7 @@
   import type { Activity } from '../lib/types';
   import { chartLabelFontSize, chartViewBoxHeight } from '../lib/chart-scale';
   import { formatDateShort } from '../lib/date-utils';
+  import { sportFamily } from '../lib/sport-color';
   import { formatPace, type UnitSystem } from '../lib/units';
 
   interface Props {
@@ -17,12 +18,21 @@
 
   let containerWidth = $state(0);
 
-  let points = $derived(
+  // Plausible running pace window (min/km). Slower than ~12:00/km is a walk
+  // or a paused recording, faster than 2:30/km is a GPS glitch - either would
+  // stretch the axis and squash the real runs, so those are left off the plot
+  // (and counted in a footnote) rather than drawn.
+  const PACE_FAST = 2.5;
+  const PACE_SLOW = 12;
+
+  let candidates = $derived(
     activities
-      .filter((a) => a.avgHR > 0 && a.distanceKm > 0.5)
+      .filter((a) => sportFamily(a.sport) === 'running' && a.avgHR > 0 && a.distanceKm > 0.5)
       .map((a) => ({ hr: a.avgHR, pace: a.durationMin / a.distanceKm, date: a.date, id: a.id }))
       .sort((a, b) => a.date.localeCompare(b.date))
   );
+  let points = $derived(candidates.filter((p) => p.pace >= PACE_FAST && p.pace <= PACE_SLOW));
+  let offScale = $derived(candidates.length - points.length);
 
   const VB_W = 400;
 
@@ -40,7 +50,7 @@
   let M = $derived(
     Math.max(46, Math.max(formatPace(paceMin, unitSystem).length, formatPace(paceMax, unitSystem).length) * labelFontSize * 0.6 + 10)
   );
-  let M_BOTTOM = $derived(Math.max(46, labelFontSize * 2));
+  let M_BOTTOM = $derived(Math.max(46, labelFontSize * 3.2));
   let PLOT_W = $derived(VB_W - M - 10);
   let PLOT_H = $derived(VB_H - M_BOTTOM - 10);
 
@@ -89,8 +99,14 @@
     if (!regression || points.length < 3) return null;
     const last = points[points.length - 1]!;
     const predicted = regression.slope * last.hr + regression.intercept;
-    return last.pace < predicted ? { text: 'last run: above your trend', color: 'var(--accent)' } : { text: 'last run: below your trend', color: 'var(--caution)' };
+    return last.pace < predicted ? { text: 'last run: above your trend', color: 'var(--accent-ink)' } : { text: 'last run: below your trend', color: 'var(--caution-ink)' };
   });
+
+  let a11yLabel = $derived(
+    `Aerobic efficiency scatter, ${points.length} runs, heart rate against pace` +
+      (regression ? `, trend fit R squared ${regression.r2.toFixed(2)}` : '') +
+      (trendLabel ? `, ${trendLabel.text}` : '')
+  );
 
   let hoverIndex = $state<number | null>(null);
   let hoverPoint = $derived(hoverIndex !== null ? points[hoverIndex]! : null);
@@ -122,7 +138,7 @@
     <div class="empty-state" style="padding: var(--space-10) var(--space-4);">Not enough running data with HR yet.</div>
   {:else}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <svg use:touchHover viewBox="0 0 {VB_W} {VB_H}" class="scatter-svg" style="--chart-label-fs: {labelFontSize}px" role="img" aria-label="Aerobic efficiency scatter" onmousemove={handleMove} onmouseleave={() => (hoverIndex = null)}>
+    <svg use:touchHover viewBox="0 0 {VB_W} {VB_H}" class="scatter-svg" style="--chart-label-fs: {labelFontSize}px" role="img" aria-label={a11yLabel} onmousemove={handleMove} onmouseleave={() => (hoverIndex = null)}>
       {#each [0.25, 0.5, 0.75] as f (f)}
         <line x1={M + f * PLOT_W} y1="10" x2={M + f * PLOT_W} y2={10 + PLOT_H} stroke="var(--line-soft)" stroke-width="1" vector-effect="non-scaling-stroke" />
         <line x1={M} y1={10 + f * PLOT_H} x2={M + PLOT_W} y2={10 + f * PLOT_H} stroke="var(--line-soft)" stroke-width="1" vector-effect="non-scaling-stroke" />
@@ -130,8 +146,10 @@
 
       <text x={M - 6} y="14" text-anchor="end" class="chart-axis-label">{formatPace(paceMin, unitSystem)}</text>
       <text x={M - 6} y={10 + PLOT_H} text-anchor="end" class="chart-axis-label">{formatPace(paceMax, unitSystem)}</text>
-      <text x={M} y={VB_H - 4} text-anchor="start" class="chart-axis-label">{Math.round(hrMin)} bpm</text>
-      <text x={M + PLOT_W} y={VB_H - 4} text-anchor="end" class="chart-axis-label">{Math.round(hrMax)} bpm</text>
+      <text x={M} y={VB_H - labelFontSize - 8} text-anchor="start" class="chart-axis-label">{Math.round(hrMin)} bpm</text>
+      <text x={M + 0.5 * PLOT_W} y={VB_H - 4} text-anchor="middle" class="chart-axis-label">avg heart rate (bpm)</text>
+      <text x={M + PLOT_W} y={VB_H - labelFontSize - 8} text-anchor="end" class="chart-axis-label">{Math.round(hrMax)} bpm</text>
+      <text x={M - 6} y={10 + 0.5 * PLOT_H} text-anchor="end" dominant-baseline="middle" class="chart-axis-label">pace</text>
 
       {#if regressionPath}
         <path d={regressionPath} stroke="var(--accent)" stroke-width="1.5" vector-effect="non-scaling-stroke" />
@@ -167,6 +185,7 @@
     {/if}
     {#if regression}
       <div class="scatter-footer" title="r² = {regression.r2.toFixed(2)}: how closely your runs follow the trend line (1 = exactly)">
+        {#if offScale > 0}<span>{offScale} {offScale === 1 ? 'run' : 'runs'} off-scale (walking pace or GPS glitch), not plotted</span>{/if}
         {#if trendLabel}<span class="mono" style="margin-left: auto; color: {trendLabel.color};">{trendLabel.text}</span>{/if}
       </div>
     {/if}

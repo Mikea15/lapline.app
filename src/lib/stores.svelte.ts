@@ -5,19 +5,28 @@
 import { db, resetAllData } from './db';
 import { findExistingActivity } from './activity-match';
 import { computeAllRecords, type RecordResult } from './records';
-import { createBackupZip, readBackupZip, backupFilename } from './backup';
+import { effortsForParsed, getEfforts, getEffortsForView, invalidateEfforts, startEffortsBackfill, trackedEffortsForView } from './efforts-store';
+import { effortsFill } from './efforts-progress.svelte';
+import type { ActivityEfforts } from './activity-efforts';
+import { createBackupZip, readBackupZip, backupFilename, ZIP_TOO_LARGE_MESSAGE } from './backup';
 import { CURRENT_VERSION } from './release-notes';
-import { createFitParsePool } from './fit-parse-pool';
+import { createFitParsePool, workoutFormat, type FitParsePool } from './fit-parse-pool';
 import { trackEvent } from './analytics';
-import { fitManufacturer, fitFailureReason, gpxFailureReason, failureMessage, GENERIC_IMPORT_ERROR } from './import-failure';
+import { isSampleFilename, removeSampleData } from './sample-data';
+import {
+  fitManufacturer,
+  fitFailureReason,
+  gpxFailureReason,
+  failureMessage,
+  GENERIC_IMPORT_ERROR,
+  MAX_IMPORT_FILE_BYTES,
+  MAX_ZIP_BYTES,
+  type ImportFailureReason
+} from './import-failure';
 import type { Entry, Activity, RecordPoint, Goal, Setting, ParsedActivity, ActivityDetail, StoredFitFile } from './types';
 import type { UnitSystem } from './units';
 import { isRangePreset, type RangePreset } from './range-preset';
 import type { Sex } from './today-kpis';
-
-function isGpxFile(filename: string): boolean {
-  return filename.toLowerCase().endsWith('.gpx');
-}
 
 // ===== Entries Store =====
 let _entries: Entry[] = $state<Entry[]>([]);
@@ -58,17 +67,47 @@ export const entriesStore = {
 let _activities: Activity[] = $state<Activity[]>([]);
 let _activitiesLoaded = $state(false);
 // allRecords() memo: computed once per loaded activity list (load() swaps
-// in a new array), not once per screen - every record reads each matching
-// activity's full detail out of IndexedDB, the slow part.
-let _recordsCache: { source: Activity[]; promise: Promise<RecordResult[]> } | null = null;
+// in a new array), not once per screen.
+let _recordsCache: { source: Activity[]; tick: number; promise: Promise<RecordResult[]> } | null = null;
 
 export const activitiesStore = {
   get all() { return _activities; },
   get loaded() { return _activitiesLoaded; },
 
   async load() {
+    // Whatever just changed the activities (an import, a re-parse, removing
+    // the samples, a reset) may have rewritten their efforts rows too.
+    invalidateEfforts();
     _activities = await db.activities.orderBy('date').toArray();
     _activitiesLoaded = true;
+  },
+
+  // One activity's best efforts and km splits (lib/activity-efforts.ts):
+  // what Records, Trends and Today's VO2max read instead of its full detail.
+  getEfforts(activity: Activity): Promise<ActivityEfforts> {
+    return getEfforts(activity);
+  },
+
+  // The same, for the screens that read many activities' efforts: null for
+  // a row the background fill (below) hasn't reached yet, instead of
+  // computing it on demand. effortsFill (lib/efforts-progress.svelte.ts)
+  // says whether that can happen and how far along the fill is.
+  getEffortsForView(activity: Activity): Promise<ActivityEfforts | null> {
+    return getEffortsForView(activity);
+  },
+
+  // getEffortsForView plus a count of the rows it left out.
+  trackedEffortsForView() {
+    return trackedEffortsForView();
+  },
+
+  // Plans the efforts rows activities don't have yet (everything, the first
+  // boot after the v8 upgrade) and starts computing them in the
+  // background, newest first. Called once after the first load(); resolves
+  // as soon as the plan is made, with a function that resolves when the
+  // fill is done (the number of rows it computed).
+  startEffortsBackfill(): Promise<() => Promise<number>> {
+    return startEffortsBackfill(_activities);
   },
 
   // Every record over the whole history, shared by the sidebar's Records
@@ -77,8 +116,12 @@ export const activitiesStore = {
   // Reading `all` here also makes a $derived caller recompute after load().
   allRecords(): Promise<RecordResult[]> {
     const source = this.all;
-    if (_recordsCache?.source !== source) {
-      _recordsCache = { source, promise: computeAllRecords(source, (id) => this.getDetail(id)) };
+    // While the efforts fill runs, what it has reached so far is used, and
+    // the memo is redone as the fill ticks (also making $derived callers
+    // recompute).
+    const tick = effortsFill.tick;
+    if (_recordsCache?.source !== source || _recordsCache.tick !== tick) {
+      _recordsCache = { source, tick, promise: computeAllRecords(source, getEffortsForView) };
     }
     return _recordsCache.promise;
   },
@@ -105,10 +148,9 @@ export const activitiesStore = {
     const activity = await db.activities.get(id);
     if (!activity) return null;
 
-    const records = await db.activityRecords
-      .where('activityId')
-      .equals(id)
-      .sortBy('ts');
+    // Already in time order (insertion order within the activityId index -
+    // see db.ts v7), so no sort.
+    const records = await db.activityRecords.where('activityId').equals(id).toArray();
 
     const laps = await db.activityLaps
       .where('activityId')
@@ -269,6 +311,38 @@ export const settingsStore = {
   }
 };
 
+// Runs at most `max` tasks at once; the rest wait their turn in order.
+function createLimiter(max: number): <T>(task: () => Promise<T>) => Promise<T> {
+  let active = 0;
+  const waiting: (() => void)[] = [];
+  return async (task) => {
+    if (active < max) active++;
+    else await new Promise<void>((resolve) => waiting.push(resolve));
+    try {
+      return await task();
+    } finally {
+      // Hand the slot straight to the next task, or give it back.
+      const next = waiting.shift();
+      if (next) next();
+      else active--;
+    }
+  };
+}
+
+// Runs the tasks one at a time, in the order they're queued. One task's
+// failure goes to its own caller and doesn't block the tasks after it.
+function createWriteQueue(): (task: () => Promise<void>) => Promise<void> {
+  let tail: Promise<void> = Promise.resolve();
+  return (task) => {
+    const run = tail.then(task, task);
+    tail = run.then(
+      () => undefined,
+      () => undefined
+    );
+    return run;
+  };
+}
+
 function sameBytes(a: Uint8Array, b: Uint8Array): boolean {
   if (a.byteLength !== b.byteLength) return false;
   for (let i = 0; i < a.byteLength; i++) if (a[i] !== b[i]) return false;
@@ -294,7 +368,13 @@ export interface ImportFileStatus {
 interface ImportState {
   status: 'idle' | 'processing' | 'done' | 'error';
   files: ImportFileStatus[];
-  result?: { files: number; imported: number; errors: string[] };
+  result?: {
+    files: number;
+    imported: number;
+    errors: string[];
+    /** Sample activities removed because the user's own files came in. */
+    sampleRemoved: number;
+  };
   error?: string;
 }
 
@@ -303,129 +383,160 @@ let _importState = $state<ImportState>({ status: 'idle', files: [] });
 export const importStore = {
   get state() { return _importState; },
 
-  async importFiles(files: File[]): Promise<void> {
+  // `rejected` are files turned away before import could read them (too
+  // large, from a .zip); they're listed with the rest, already failed.
+  async importFiles(files: File[], rejected: { name: string; reason: ImportFailureReason }[] = []): Promise<void> {
     _importState = {
       status: 'processing',
-      files: files.map((f) => ({ name: f.name, status: 'pending' }))
+      files: [
+        ...files.map((f): ImportFileStatus => ({ name: f.name, status: 'pending' })),
+        ...rejected.map((r): ImportFileStatus => ({ name: r.name, status: 'error', message: failureMessage(r.reason) }))
+      ]
     };
     try {
       let totalImported = 0;
       let processedFiles = 0;
-      const errors: string[] = [];
-      // GPX parsing is plain regex/string work over a text file (no
-      // binary decode), cheap enough to run straight on the main thread -
-      // only .fit files need the CPU-bound worker pool below, so it's
-      // sized off just those (and skipped entirely for an all-GPX import).
-      const fitCount = files.filter((f) => !isGpxFile(f.name)).length;
-      const pool = fitCount > 0 ? createFitParsePool(fitCount) : null;
+      let ownFilesSaved = 0;
+      const errors: string[] = rejected.map((r) => `${r.name}: ${failureMessage(r.reason)}`);
+      for (const r of rejected) {
+        trackEvent('import_file_failed', { format: workoutFormat(r.name), manufacturer: 'unknown', reason: r.reason });
+      }
+      // Every file is read and parsed in the worker pool, each read only
+      // once a worker is free for it.
+      const pool = files.length > 0 ? createFitParsePool(files.length) : null;
+      // At most this many files are in flight at once (read, parsed or
+      // waiting to be saved), so a big import holds a few files' bytes and
+      // parsed records in memory rather than all of them. Twice the pool,
+      // so workers keep parsing while earlier files are being saved.
+      const inFlight = createLimiter((pool?.size ?? 1) * 2);
 
-      // FIT parsing (CPU-bound) runs concurrently across the worker pool
-      // below, but the DB write for each parsed file - an upsert keyed on
+      // Parsing (CPU-bound) runs concurrently across the worker pool, but
+      // the DB write for each parsed file - an upsert keyed on
       // [date+sport] that reads-then-writes - is not safe to run
       // concurrently with itself, so writes are chained through this queue
       // to execute one at a time regardless of which file finishes parsing
-      // first. `.catch(() => {})` on the chain keeps one file's write error
-      // from blocking every write queued after it.
-      let writeQueue: Promise<void> = Promise.resolve();
-      function enqueueWrite(task: () => Promise<void>): Promise<void> {
-        const run = writeQueue.then(task, task);
-        writeQueue = run.then(
-          () => undefined,
-          () => undefined
-        );
-        return run;
-      }
+      // first.
+      const enqueueWrite = createWriteQueue();
 
       await Promise.all(
-        files.map(async (file, i) => {
-          const entry = _importState.files[i]!;
-          const isGpx = isGpxFile(file.name);
-          let bytes = new Uint8Array(0);
-          let saving = false;
-          try {
-            if (file.size === 0) {
-              throw new Error('file is empty');
-            }
-            bytes = new Uint8Array(await file.arrayBuffer());
-            let activities: ParsedActivity[];
-            if (isGpx) {
-              entry.status = 'processing';
-              const { parseGPX } = await import('./gpx-parser');
-              activities = parseGPX(new TextDecoder('utf-8').decode(bytes));
-            } else {
-              activities = await pool!.parse(bytes, () => (entry.status = 'processing'));
-            }
-            if (activities.length === 0) {
-              // The decoder can succeed (return no error) on a file that is
-              // structurally valid but corrupted, empty of track/session data,
-              // or not a workout file at all (e.g. a FIT monitoring/settings
-              // export, or a GPX with no timestamped track points). Without
-              // this check that case reports as a silent success with nothing
-              // actually imported.
-              throw new Error(
-                isGpx
-                  ? 'no track points found (file may be corrupted or not a GPX track with timestamps)'
-                  : 'no workout data found (file may be corrupted or not a workout FIT file)'
+        files.map((file, i) =>
+          inFlight(async () => {
+            const entry = _importState.files[i]!;
+            const format = workoutFormat(file.name);
+            let bytes = new Uint8Array(0);
+            let saving = false;
+            let tooLarge = false;
+            try {
+              if (file.size === 0) {
+                throw new Error('file is empty');
+              }
+              if (file.size > MAX_IMPORT_FILE_BYTES) {
+                tooLarge = true;
+                throw new Error('file is too large');
+              }
+              const activities = await pool!.parse(
+                { format, read: async () => (bytes = new Uint8Array(await file.arrayBuffer())) },
+                () => (entry.status = 'processing')
               );
-            }
-            saving = true;
-            await enqueueWrite(async () => {
-              // Keep the raw bytes (in fitFileBlobs, separate from the
-              // fitFiles metadata row - see db.ts's v5 migration) so a future
-              // parser fix can be re-applied via "Re-parse stored files"
-              // (Settings) without re-uploading anything. Stored only once
-              // the file is confirmed to hold real workout data, so a
-              // rejected/corrupt upload never leaves an orphaned row behind.
-              const sourceFileId = await db.transaction('rw', db.fitFiles, db.fitFileBlobs, async () => {
-                // Re-importing a byte-identical file (a second drop of the same
-                // file, or restoring a backup into a browser that already has
-                // it) reuses its stored copy instead of keeping a duplicate.
-                // saveActivities then matches its activities by position under
-                // that id, so they're updated in place, not added again.
-                const existingId = await findIdenticalStoredFile(file.name, bytes);
-                if (existingId !== undefined) return existingId;
-                const id = await db.fitFiles.add({
-                  filename: file.name,
-                  size: bytes.byteLength,
-                  importedAt: new Date().toISOString()
-                } as StoredFitFile);
-                await db.fitFileBlobs.put({ id, data: bytes });
-                return id;
+              if (activities.length === 0) {
+                // The decoder can succeed (return no error) on a file that is
+                // structurally valid but corrupted, empty of track/session data,
+                // or not a workout file at all (e.g. a FIT monitoring/settings
+                // export, or a GPX with no timestamped track points). Without
+                // this check that case reports as a silent success with nothing
+                // actually imported.
+                throw new Error(
+                  format === 'gpx'
+                    ? 'no track points found (file may be corrupted or not a GPX track with timestamps)'
+                    : 'no workout data found (file may be corrupted or not a workout FIT file)'
+                );
+              }
+              saving = true;
+              await enqueueWrite(async () => {
+                // Keep the raw bytes (in fitFileBlobs, separate from the
+                // fitFiles metadata row - see db.ts's v5 migration) so a future
+                // parser fix can be re-applied via "Re-parse stored files"
+                // (Settings) without re-uploading anything. Stored only once
+                // the file is confirmed to hold real workout data, so a
+                // rejected/corrupt upload never leaves an orphaned row behind.
+                // File and activities go in one transaction (saveActivities'
+                // own joins it), so a failed save rolls the file back too.
+                await db.transaction('rw', IMPORT_TABLES, async () => {
+                  // Re-importing a byte-identical file (a second drop of the same
+                  // file, or restoring a backup into a browser that already has
+                  // it) reuses its stored copy instead of keeping a duplicate.
+                  // saveActivities then matches its activities by position under
+                  // that id, so they're updated in place, not added again.
+                  let sourceFileId = await findIdenticalStoredFile(file.name, bytes);
+                  if (sourceFileId === undefined) {
+                    sourceFileId = await db.fitFiles.add({
+                      filename: file.name,
+                      size: bytes.byteLength,
+                      importedAt: new Date().toISOString()
+                    } as StoredFitFile);
+                    await db.fitFileBlobs.put({ id: sourceFileId, data: bytes });
+                  }
+                  await saveActivities(activities, sourceFileId);
+                });
+                totalImported += activities.length;
+                processedFiles++;
+                if (!isSampleFilename(file.name)) ownFilesSaved++;
+                entry.status = 'done';
+                entry.message = `${activities.length} ${activities.length === 1 ? 'activity' : 'activities'}`;
               });
-              await saveActivities(activities, sourceFileId);
-              totalImported += activities.length;
-              processedFiles++;
-              entry.status = 'done';
-              entry.message = `${activities.length} ${activities.length === 1 ? 'activity' : 'activities'}`;
-            });
-          } catch (e) {
-            const message = e instanceof Error ? e.message : String(e);
-            const reason = saving ? 'save_error' : isGpx ? gpxFailureReason(bytes, message) : fitFailureReason(bytes, message);
-            errors.push(`${file.name}: ${failureMessage(reason)}`);
-            entry.status = 'error';
-            entry.message = failureMessage(reason);
-            // Maker and error type only - never the file's name or contents.
-            trackEvent('import_file_failed', { format: isGpx ? 'gpx' : 'fit', manufacturer: isGpx ? 'gpx' : fitManufacturer(bytes), reason });
-          }
-        })
+            } catch (e) {
+              const message = e instanceof Error ? e.message : String(e);
+              const reason: ImportFailureReason = tooLarge
+                ? 'too_large'
+                : saving
+                  ? 'save_error'
+                  : format === 'gpx'
+                    ? gpxFailureReason(bytes, message)
+                    : fitFailureReason(bytes, message);
+              errors.push(`${file.name}: ${failureMessage(reason)}`);
+              entry.status = 'error';
+              entry.message = failureMessage(reason);
+              // Maker and error type only - never the file's name or contents.
+              trackEvent('import_file_failed', { format, manufacturer: format === 'gpx' ? 'gpx' : fitManufacturer(bytes), reason });
+            }
+          })
+        )
       );
       pool?.terminate();
 
-      _importState = {
-        ..._importState,
-        status: 'done',
-        result: { files: processedFiles, imported: totalImported, errors }
-      };
-      // Counts only - never a filename or anything derived from activity
-      // content.
-      trackEvent('import_completed', { files: processedFiles, imported: totalImported, errors: errors.length });
+      // The user's own workouts have arrived (from files, a device folder
+      // or a backup), so the demo runs go: left in, they'd mix into every
+      // total, trend and record. Only after at least one real file saved, so
+      // an import that failed outright still leaves something to look at.
+      // A sample activity a real file matched and took over points at the
+      // real file by now, so removeSampleData leaves it alone.
+      let sampleRemoved = 0;
+      if (ownFilesSaved > 0) {
+        try {
+          sampleRemoved = await removeSampleData();
+          if (sampleRemoved > 0) trackEvent('sample_data_removed', { automatic: true });
+        } catch (e) {
+          // Not fatal: the banner still offers "Remove sample data".
+          console.error(e);
+        }
+      }
 
-      // Refresh stores
+      // Reload the stores first, so the result (and the sample banner going
+      // away) shows up together with the new activity list.
       await Promise.all([
         entriesStore.load(),
         activitiesStore.load(),
         fitFilesStore.load()
       ]);
+
+      _importState = {
+        ..._importState,
+        status: 'done',
+        result: { files: processedFiles, imported: totalImported, errors, sampleRemoved }
+      };
+      // Counts only - never a filename or anything derived from activity
+      // content.
+      trackEvent('import_completed', { files: processedFiles, imported: totalImported, errors: errors.length });
     } catch (e) {
       console.error(e);
       _importState = { ..._importState, status: 'error', error: GENERIC_IMPORT_ERROR };
@@ -443,8 +554,12 @@ export const importStore = {
 // parsed from (see fitFilesStore.reparseAll below) - omitted when re-parsing
 // isn't the caller's concern (there is none today, but keeping it optional
 // rather than required avoids forcing every future caller to have one).
+const ACTIVITY_TABLES = [db.activities, db.activityRecords, db.activityLaps, db.activityLengths, db.activityEfforts];
+// Everything one imported file writes: its stored copy plus its activities.
+const IMPORT_TABLES = [db.fitFiles, db.fitFileBlobs, ...ACTIVITY_TABLES];
+
 async function saveActivities(acts: ParsedActivity[], sourceFileId?: number): Promise<number> {
-  return db.transaction('rw', db.activities, db.activityRecords, db.activityLaps, db.activityLengths, async () => {
+  return db.transaction('rw', ACTIVITY_TABLES, async () => {
     let count = 0;
 
     // Re-parsing an already-stored file (either a fresh import's own write,
@@ -504,6 +619,7 @@ async function saveActivities(acts: ParsedActivity[], sourceFileId?: number): Pr
           workoutFeel: pa.activity.workoutFeel,
           workoutRpe: pa.activity.workoutRpe,
           startTimeLabel: pa.activity.startTimeLabel,
+          startUtc: pa.activity.startUtc,
           sweatLossMl: pa.activity.sweatLossMl,
           recoveryHrBpm: pa.activity.recoveryHrBpm,
           garminVo2Max: pa.activity.garminVo2Max,
@@ -527,13 +643,14 @@ async function saveActivities(acts: ParsedActivity[], sourceFileId?: number): Pr
         } as Activity);
       }
 
-      // Replace records
+      // Replace records, and the efforts summary derived from them
       await db.activityRecords.where('activityId').equals(activityId).delete();
       if (pa.records.length > 0) {
         await db.activityRecords.bulkAdd(
           pa.records.map(r => ({ ...r, activityId }))
         );
       }
+      await db.activityEfforts.put(effortsForParsed(activityId, pa));
 
       // Replace laps
       await db.activityLaps.where('activityId').equals(activityId).delete();
@@ -591,10 +708,20 @@ export const fitFilesStore = {
   get reparseResult() { return _reparseResult; },
 
   async load() {
-    const files = await db.fitFiles.toArray();
-    _fitFileCount = files.length;
-    _fitFileTotalBytes = files.reduce((sum, f) => sum + f.size, 0);
-    _lastImportedAt = files.reduce<string | null>((latest, f) => (!latest || f.importedAt > latest ? f.importedAt : latest), null);
+    // One cursor pass over the (small) metadata rows: the byte total needs
+    // every row anyway, so count and latest come along rather than costing
+    // queries of their own - and no array of every row is built.
+    let count = 0;
+    let totalBytes = 0;
+    let latest: string | null = null;
+    await db.fitFiles.each((f) => {
+      count++;
+      totalBytes += f.size;
+      if (latest === null || f.importedAt > latest) latest = f.importedAt;
+    });
+    _fitFileCount = count;
+    _fitFileTotalBytes = totalBytes;
+    _lastImportedAt = latest;
   },
 
   // Re-parses every stored .fit file and upserts the result over the
@@ -608,45 +735,67 @@ export const fitFilesStore = {
     if (_reparsing) return _reparseResult ?? { filesReparsed: 0, activitiesUpdated: 0, errors: [] };
     _reparsing = true;
     _reparseResult = null;
-    const files = await db.fitFiles.toArray();
-    _reparseProgress = { done: 0, total: files.length };
+    let pool: FitParsePool | null = null;
     try {
-      const { parseFIT } = await import('./fit-parser');
-      const { parseGPX } = await import('./gpx-parser');
+      // Metadata rows only: each file's bytes are read from fitFileBlobs
+      // once a worker is free for it, so a large history is never all in
+      // memory at once.
+      const files = await db.fitFiles.toArray();
+      _reparseProgress = { done: 0, total: files.length };
+      // Parsed in the same worker pool as an import (several at once, off
+      // the main thread), saved one at a time.
+      pool = createFitParsePool(Math.max(1, files.length));
+      const inFlight = createLimiter(pool.size * 2);
+      const enqueueWrite = createWriteQueue();
       let activitiesUpdated = 0;
-      const errors: string[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const f = files[i]!;
-        try {
-          // Fetched one file at a time rather than joined into the metadata
-          // listing above, so re-parsing a large history doesn't need every
-          // file's raw bytes in memory at once.
-          const blob = await db.fitFileBlobs.get(f.id);
-          if (!blob) {
-            errors.push(`${f.filename}: The stored copy of this file is missing. Import it again.`);
-            continue;
-          }
-          const isGpx = isGpxFile(f.filename);
-          let saving = false;
-          try {
-            const activities = isGpx ? parseGPX(new TextDecoder('utf-8').decode(blob.data)) : await parseFIT(blob.data);
-            saving = true;
-            activitiesUpdated += await saveActivities(activities, f.id);
-          } catch (e) {
-            const message = e instanceof Error ? e.message : String(e);
-            const reason = saving ? 'save_error' : isGpx ? gpxFailureReason(blob.data, message) : fitFailureReason(blob.data, message);
-            errors.push(`${f.filename}: ${failureMessage(reason)}`);
-          }
-        } catch {
-          errors.push(`${f.filename}: ${GENERIC_IMPORT_ERROR}`);
-        } finally {
-          _reparseProgress = { done: i + 1, total: files.length };
-        }
-      }
+      let done = 0;
+      // Per file, so the errors list in file order whichever finishes first.
+      const fileErrors: (string | undefined)[] = [];
+      await Promise.all(
+        files.map((f, i) =>
+          inFlight(async () => {
+            const format = workoutFormat(f.filename);
+            let stage: 'read' | 'parse' | 'save' = 'read';
+            let bytes: Uint8Array = new Uint8Array(0);
+            let missing = false;
+            try {
+              const activities = await pool!.parse({
+                format,
+                read: async () => {
+                  const blob = await db.fitFileBlobs.get(f.id);
+                  if (!blob) {
+                    missing = true;
+                    throw new Error('the stored copy is missing');
+                  }
+                  bytes = blob.data;
+                  stage = 'parse';
+                  return bytes;
+                }
+              });
+              stage = 'save';
+              await enqueueWrite(async () => {
+                activitiesUpdated += await saveActivities(activities, f.id);
+              });
+            } catch (e) {
+              const message = e instanceof Error ? e.message : String(e);
+              if (stage === 'read') {
+                fileErrors[i] = missing ? 'The stored copy of this file is missing. Import it again.' : GENERIC_IMPORT_ERROR;
+              } else {
+                const reason = stage === 'save' ? 'save_error' : format === 'gpx' ? gpxFailureReason(bytes, message) : fitFailureReason(bytes, message);
+                fileErrors[i] = failureMessage(reason);
+              }
+            } finally {
+              _reparseProgress = { done: ++done, total: files.length };
+            }
+          })
+        )
+      );
+      const errors = files.flatMap((f, i) => (fileErrors[i] ? [`${f.filename}: ${fileErrors[i]}`] : []));
       await activitiesStore.load();
       _reparseResult = { filesReparsed: files.length, activitiesUpdated, errors };
       return _reparseResult;
     } finally {
+      pool?.terminate();
       _reparsing = false;
       _reparseProgress = null;
     }
@@ -673,6 +822,7 @@ export interface BackupRestoreResult {
   errors: string[];
   missing: string[];
   settingsRestored: number;
+  sampleRemoved: number;
 }
 
 let _backupBusy = $state<'idle' | 'exporting' | 'restoring'>('idle');
@@ -708,25 +858,39 @@ export const backupStore = {
   async restore(file: File): Promise<BackupRestoreResult> {
     _backupBusy = 'restoring';
     try {
-      const { manifest, files, missing } = await readBackupZip(new Uint8Array(await file.arrayBuffer()));
-      if (files.length > 0) {
-        await importStore.importFiles(files.map((f) => new File([f.data as BlobPart], f.filename)));
+      // The whole zip is read into memory to unpack it.
+      if (file.size > MAX_ZIP_BYTES) throw new Error(ZIP_TOO_LARGE_MESSAGE);
+      const { manifest, files, missing, skipped } = await readBackupZip(new Uint8Array(await file.arrayBuffer()));
+      const fileCount = files.length;
+      let result: ImportState['result'];
+      if (fileCount > 0 || skipped.length > 0) {
+        // splice: the unpacked arrays aren't kept alongside their Files.
+        const unpacked = files.splice(0).map((f) => new File([f.data as BlobPart], f.filename));
+        await importStore.importFiles(unpacked, skipped.map((s) => ({ name: s.filename, reason: s.reason })));
+        result = importStore.state.result;
       }
-      const result = importStore.state.result;
       // A plain zip of workout files (no manifest) is just an import.
       if (!manifest) {
-        trackEvent('workout_zip_imported', { files: files.length });
-        return { filesInBackup: files.length, activitiesImported: result?.imported ?? 0, errors: result?.errors ?? [], missing, settingsRestored: 0 };
+        trackEvent('workout_zip_imported', { files: fileCount });
+        return {
+          filesInBackup: fileCount + skipped.length,
+          activitiesImported: result?.imported ?? 0,
+          errors: result?.errors ?? [],
+          missing,
+          settingsRestored: 0,
+          sampleRemoved: result?.sampleRemoved ?? 0
+        };
       }
       const settingsRestored = Object.keys(manifest.settings).length;
       if (settingsRestored > 0) await settingsStore.save(manifest.settings);
-      trackEvent('backup_restored', { files: files.length });
+      trackEvent('backup_restored', { files: fileCount });
       return {
         filesInBackup: manifest.files.length,
         activitiesImported: result?.imported ?? 0,
         errors: result?.errors ?? [],
         missing,
-        settingsRestored
+        settingsRestored,
+        sampleRemoved: result?.sampleRemoved ?? 0
       };
     } finally {
       _backupBusy = 'idle';
@@ -779,12 +943,12 @@ export const deviceSyncStore = {
   get lastFoundCount() { return _deviceSyncFoundCount; },
 
   async load() {
+    // Cleared when there's no row too, so "Reset all data" forgets the
+    // folder in this session as well as on disk.
     const row = await db.deviceSync.get('default');
-    if (row) {
-      _deviceSyncHandle = row.handle;
-      _deviceSyncName = row.name;
-      _deviceSyncLastAt = row.lastSyncedAt;
-    }
+    _deviceSyncHandle = row?.handle ?? null;
+    _deviceSyncName = row?.name ?? null;
+    _deviceSyncLastAt = row?.lastSyncedAt ?? null;
   },
 
   async connect() {
@@ -830,8 +994,9 @@ export const deviceSyncStore = {
       const found = await walkForFitFiles(_deviceSyncHandle);
       // Skip files already imported (by filename) so re-syncing a folder
       // full of old activities doesn't re-store and re-parse everything on
-      // every click - only genuinely new files reach importStore.
-      const known = new Set((await db.fitFiles.toArray()).map((f) => f.filename));
+      // every click - only genuinely new files reach importStore. Read
+      // straight off the filename index, without loading the rows.
+      const known = new Set((await db.fitFiles.orderBy('filename').uniqueKeys()) as string[]);
       const newFiles = found.filter((f) => !known.has(f.name));
       _deviceSyncFoundCount = newFiles.length;
       if (newFiles.length > 0) {

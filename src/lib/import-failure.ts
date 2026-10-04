@@ -13,7 +13,19 @@ export type ImportFailureReason =
   | 'fit_parse_error' // walks fine, but the decoder threw
   | 'gpx_no_track'
   | 'gpx_parse_error'
-  | 'save_error'; // parsed, but writing to the browser's database failed
+  | 'save_error' // parsed, but writing to the browser's database failed
+  | 'too_large' // over MAX_IMPORT_FILE_BYTES, not read at all
+  | 'zip_too_large'; // left in a .zip that holds more than MAX_ZIP_CONTENT_BYTES
+
+const MB = 1024 * 1024;
+/** Largest single .fit/.gpx file import reads: a day-long 1 s recording is a
+    few MB as FIT and ~20 MB as GPX, so anything bigger isn't one workout
+    (and would be a lot to hold in memory and parse). */
+export const MAX_IMPORT_FILE_BYTES = 25 * MB;
+/** Largest .zip import opens: it's read into memory whole. */
+export const MAX_ZIP_BYTES = 500 * MB;
+/** Most unpacked workout bytes taken from one .zip. */
+export const MAX_ZIP_CONTENT_BYTES = 500 * MB;
 
 // FIT manufacturer ids (the FIT SDK profile, as in fit-file-parser's
 // garmin_profile.generated.js) for the makers worth telling apart.
@@ -100,6 +112,10 @@ export function failureMessage(reason: ImportFailureReason): string {
       return "This GPX file couldn't be read. Try exporting it again.";
     case 'save_error':
       return "Couldn't save this activity. Check your browser has free storage, then try again.";
+    case 'too_large':
+      return `Over ${MAX_IMPORT_FILE_BYTES / MB} MB, too large for one workout. Export this activity again on its own.`;
+    case 'zip_too_large':
+      return `Left out: the .zip holds over ${MAX_ZIP_CONTENT_BYTES / MB} MB of workouts. Unzip it and import the files in smaller batches.`;
     case 'fit_parse_error':
       return GENERIC_IMPORT_ERROR;
   }

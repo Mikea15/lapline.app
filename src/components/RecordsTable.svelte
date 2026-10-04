@@ -3,7 +3,7 @@
   import Sparkline from './Sparkline.svelte';
   import Skeleton from './Skeleton.svelte';
   import { familyColorVar } from '../lib/sport-color';
-  import { formatSpeed, toDisplayDistance, toDisplaySpeed, distanceUnit, speedUnit, type UnitSystem } from '../lib/units';
+  import { formatSpeed, poolMeters, formatPoolDistance, toDisplayDistance, toDisplaySpeed, distanceUnit, speedUnit, type UnitSystem } from '../lib/units';
   import { formatDateDMY, daysAgo } from '../lib/date-utils';
   import type { RecordResult } from '../lib/records';
   import { phone } from '../lib/viewport.svelte';
@@ -24,7 +24,7 @@
       return `${m}:${String(s).padStart(2, '0')}`;
     }
     if (r.kind === 'fastest-avg-speed') return formatSpeed(r.bestValue, unitSystem, 1);
-    if (r.sport === 'pool-swim') return `${Math.round(r.bestValue * 1000)}`;
+    if (r.sport === 'pool-swim') return String(poolMeters(r.bestValue));
     return toDisplayDistance(r.bestValue, unitSystem).toFixed(2);
   }
 
@@ -38,10 +38,15 @@
       return `${diff >= 0 ? '+' : '−'}${Math.abs(toDisplaySpeed(diff, unitSystem)).toFixed(1)} ${speedUnit(unitSystem)}`;
     }
     if (r.sport === 'pool-swim') {
-      return `${diff >= 0 ? '+' : '−'}${Math.abs(Math.round(diff * 1000))} m`;
+      return `${diff >= 0 ? '+' : '−'}${formatPoolDistance(Math.abs(diff))}`;
     }
     return `${diff >= 0 ? '+' : '−'}${Math.abs(toDisplayDistance(diff, unitSystem)).toFixed(2)} ${distanceUnit(unitSystem)}`;
   }
+
+  const NO_EFFORT = 'No effort yet';
+  const NEEDS_TWO = 'Needs 2 efforts';
+  const NEEDS_TWO_TITLE = 'Gain and progression show once this record has been improved at least once';
+  const NO_EFFORT_TITLE = 'No qualifying effort recorded yet';
 
   function sparklineData(r: RecordResult): number[] {
     const values = r.history.map((h) => h.value);
@@ -60,7 +65,7 @@
       <span class="record-label">{r.label}</span>
       {#if !r.loading && isNew(r)}<span class="new-flag">NEW</span>{/if}
       <span class="record-value mono">
-        {#if r.loading}<Skeleton width="46px" height="13px" />{:else}{formatBest(r)}{/if}
+        {#if r.loading}<Skeleton width="46px" height="13px" />{:else if r.bestValue === null}<span class="muted-note" title={NO_EFFORT_TITLE} aria-label={NO_EFFORT}>{NO_EFFORT}</span>{:else}{formatBest(r)}{/if}
       </span>
     </span>
     {#if !r.loading && r.setDate}
@@ -96,13 +101,14 @@
 {:else}
 <div class="table-wrap">
   <table style="min-width: 560px;">
+    <caption class="sr-only">Personal records: best value, when it was set, gain over the previous best, and progression</caption>
     <thead>
       <tr>
-        <th style="text-align: left;">Record</th>
-        <th>Best</th>
-        <th>Set</th>
-        <th>Gain</th>
-        <th style="text-align: left; width: 130px;">Progression</th>
+        <th scope="col" style="text-align: left;">Record</th>
+        <th scope="col">Best</th>
+        <th scope="col">Set</th>
+        <th scope="col">Gain</th>
+        <th scope="col" style="text-align: left; width: 130px;">Progression</th>
       </tr>
     </thead>
     <tbody>
@@ -111,13 +117,16 @@
           class:row-active={isNew(r)}
           class:clickable-row={!r.loading && r.setByActivityId !== null}
           onclick={() => !r.loading && r.setByActivityId !== null && onSelect(r.setByActivityId)}
-          role={!r.loading && r.setByActivityId !== null ? 'button' : undefined}
-          tabindex={!r.loading && r.setByActivityId !== null ? 0 : undefined}
         >
           <td style="text-align: left;">
             <div class="record-cell">
               <span class="sport-bar" style="background: {familyColorVar(r.sport)};"></span>
-              <span class="record-label">{r.label}</span>
+              {#if !r.loading && r.setByActivityId !== null}
+                {@const id = r.setByActivityId}
+                <button type="button" class="row-link record-label" aria-label="Open the activity that set the {r.label} record" onclick={(e) => { e.stopPropagation(); onSelect(id); }}>{r.label}</button>
+              {:else}
+                <span class="record-label">{r.label}</span>
+              {/if}
               {#if !r.loading && isNew(r)}<span class="new-flag">NEW</span>{/if}
             </div>
           </td>
@@ -127,16 +136,27 @@
             <td><Skeleton width="42px" height="13px" /></td>
             <td style="text-align: left;"><Skeleton width="100px" height="20px" /></td>
           {:else}
-            <td class="record-value">{formatBest(r)}</td>
-            <td>{r.setDate ? formatDateDMY(r.setDate) : '—'}</td>
-            <td>{formatGain(r)}</td>
-            <td style="text-align: left;">
-              {#if r.history.length > 1}
-                <Sparkline data={sparklineData(r)} color={familyColorVar(r.sport)} width={120} height={26} />
-              {:else}
-                <span class="mono" style="color: var(--ink-7);">—</span>
-              {/if}
-            </td>
+            {#if r.bestValue === null}
+              <td class="record-value"><span class="muted-note" title={NO_EFFORT_TITLE} aria-label={NO_EFFORT}>{NO_EFFORT}</span></td>
+              <td></td>
+              <td></td>
+              <td></td>
+            {:else}
+              <td class="record-value">{formatBest(r)}</td>
+              <td>{r.setDate ? formatDateDMY(r.setDate) : '—'}</td>
+              <td>
+                {#if formatGain(r) === '—'}
+                  <span class="muted-note" title={NEEDS_TWO_TITLE} aria-label={NEEDS_TWO}>{NEEDS_TWO}</span>
+                {:else}{formatGain(r)}{/if}
+              </td>
+              <td style="text-align: left;">
+                {#if r.history.length > 1}
+                  <Sparkline data={sparklineData(r)} color={familyColorVar(r.sport)} width={120} height={26} />
+                {:else}
+                  <span class="muted-note" title={NEEDS_TWO_TITLE} aria-label={NEEDS_TWO}>{NEEDS_TWO}</span>
+                {/if}
+              </td>
+            {/if}
           {/if}
         </tr>
       {/each}
@@ -146,6 +166,27 @@
 {/if}
 
 <style>
+  .muted-note {
+    color: var(--ink-5);
+    font-family: var(--font-sans);
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-regular, 400);
+  }
+  .row-link {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+    cursor: pointer;
+  }
+  .row-link:focus-visible {
+    outline: none;
+  }
+  tr.clickable-row:focus-within {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: -2px;
+  }
   .record-cell {
     display: flex;
     align-items: center;
@@ -168,7 +209,7 @@
     font-family: var(--font-mono);
     font-weight: var(--fw-semibold);
     font-size: var(--fs-xs);
-    color: var(--accent);
+    color: var(--accent-ink);
   }
   .record-value {
     font-size: var(--fs-lg);

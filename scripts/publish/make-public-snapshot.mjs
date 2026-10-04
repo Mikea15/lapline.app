@@ -46,6 +46,12 @@ const LEAKS = fs
   .map((l) => l.trim())
   .filter((l) => l && !l.startsWith('#'))
   .map((l) => new RegExp(l, 'i'));
+// The secret seed the demo/fixture anonymising draws from (scripts/demo/
+// anonymise.ts) is git-ignored, so it should never be in HEAD - but if it
+// ever is, anywhere, refuse.
+for (const seed of [process.env.LAPLINE_ANONYMISE_SEED, fs.existsSync('stub-data/anonymise-seed.txt') ? fs.readFileSync('stub-data/anonymise-seed.txt', 'utf8') : '']) {
+  if (seed?.trim()) LEAKS.push(new RegExp(seed.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+}
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
 const inOut = (...args) => execFileSync('git', args, { cwd: out, encoding: 'utf8' }).trim();
@@ -73,15 +79,17 @@ const files = git('ls-tree', '-r', '--name-only', 'HEAD')
   .filter((f) => f && !EXCLUDE.some((re) => re.test(f)));
 
 // Read and check everything before touching the output folder, so a leak
-// never leaves a half-written repo behind.
+// never leaves a half-written repo behind. Paths are checked as well as
+// contents: a file's name can leak as much as what's in it.
 const blobs = new Map();
 const problems = [];
 for (const f of files) {
+  for (const re of LEAKS) if (re.test(f)) problems.push(`${f}: path matches ${re}`);
   const data = execFileSync('git', ['cat-file', 'blob', `HEAD:${f}`], { maxBuffer: 256 * 1024 * 1024 }); // binaries (the tour video) exceed the 1 MB default
   blobs.set(f, data);
   if (!data.includes(0)) {
     const text = data.toString('utf8');
-    for (const re of LEAKS) if (re.test(text)) problems.push(`${f}: matches ${re}`);
+    for (const re of LEAKS) if (re.test(text)) problems.push(`${f}: contents match ${re}`);
   }
 }
 if (problems.length) {

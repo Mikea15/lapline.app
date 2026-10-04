@@ -181,7 +181,7 @@
     position: absolute;
     font-size: var(--fs-xs);
     line-height: 1.5;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .bottom-left {
     left: 12px;

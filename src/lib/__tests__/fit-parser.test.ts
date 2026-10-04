@@ -5,7 +5,8 @@ import path from 'node:path';
 import { parseFIT, sanitizeAltitudeSpikes } from '../fit-parser';
 
 // Anonymised copies of real recordings (scripts/demo/make-test-fixtures.ts):
-// same names, dates and metrics as the originals, positions moved.
+// the originals' sports and device metrics, but GPS routes trimmed and
+// moved and dates shifted by a secret number of days.
 const STUB_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../test-fixtures');
 
 function loadStub(name: string): Uint8Array {
@@ -18,7 +19,7 @@ describe('parseFIT cadence correction', () => {
   // own stub data was confirmed at avg_cadence=75 (raw) for recreational-
   // pace runs where true cadence should be ~150-160 spm.
   it('doubles avg/max cadence and the per-record cadence stream for running activities', async () => {
-    const [activity] = await parseFIT(loadStub('2026-08-31-18-37-54.fit'));
+    const [activity] = await parseFIT(loadStub('run-easy.fit'));
     expect(activity).toBeDefined();
     expect(activity!.activity.sport.toLowerCase()).toContain('run');
     // Raw FIT avg_cadence/max_cadence were confirmed at 75/79 via direct inspection.
@@ -33,7 +34,7 @@ describe('parseFIT cadence correction', () => {
   });
 
   it('leaves non-running activities (e.g. cardio training) uncorrected', async () => {
-    const [activity] = await parseFIT(loadStub('2026-08-30-09-22-05.fit'));
+    const [activity] = await parseFIT(loadStub('cardio-1.fit'));
     expect(activity).toBeDefined();
     expect(activity!.activity.sport.toLowerCase()).not.toContain('run');
     // This stub has no cadence data at all - avgCadence should stay 0, not
@@ -50,7 +51,7 @@ describe('parseFIT custom activity profile names', () => {
   // user-configured activity name for a custom profile FIT has no
   // dedicated sport enum value for.
   it('uses a real sport_profile_name over the FIT generic/generic placeholder', async () => {
-    const [activity] = await parseFIT(loadStub('2026-09-11-19-35-28.fit'));
+    const [activity] = await parseFIT(loadStub('bouldering.fit'));
     expect(activity).toBeDefined();
     expect(activity!.activity.sport).toBe('Bouldering');
   });
@@ -62,7 +63,7 @@ describe('parseFIT custom activity profile names', () => {
   // sport-is-already-specific short-circuit did before this fix) mislabels a
   // real "Footy" session as an indistinguishable "Running" one.
   it('appends a real, distinctive sport_profile_name onto an already-specific sport', async () => {
-    const [activity] = await parseFIT(loadStub('2026-09-14-19-02-58.fit'));
+    const [activity] = await parseFIT(loadStub('footy.fit'));
     expect(activity).toBeDefined();
     expect(activity!.activity.sport).toBe('running (Footy)');
   });
@@ -71,7 +72,7 @@ describe('parseFIT custom activity profile names', () => {
   // profile) just restates the sport FIT already gave us and shouldn't be
   // appended - only a real, distinctive rename like "Footy" above should be.
   it('does not append a profile name that is just the sport family\'s own default label', async () => {
-    const [activity] = await parseFIT(loadStub('2026-08-31-18-37-54.fit'));
+    const [activity] = await parseFIT(loadStub('run-easy.fit'));
     expect(activity).toBeDefined();
     expect(activity!.activity.sport).toBe('running');
   });
@@ -83,7 +84,7 @@ describe('parseFIT fit-file-parser v5 fields', () => {
   // still matching on the old numeric value would silently find zero session
   // zone entries and every activity's zone data would regress to empty.
   it('still finds real HR zone data on a stub file known to have it', async () => {
-    const [activity] = await parseFIT(loadStub('2026-09-05-08-03-15.fit'));
+    const [activity] = await parseFIT(loadStub('run-long.fit'));
     expect(activity).toBeDefined();
     expect(activity!.activity.timeInZoneSec).toHaveLength(5);
     expect(activity!.activity.hrZoneBoundaries).toHaveLength(5);
@@ -95,9 +96,18 @@ describe('parseFIT fit-file-parser v5 fields', () => {
   // Connect entry) - guards against a future library bump silently
   // reintroducing that 10x error in a value shown directly to the user.
   it('scales workout_rpe down to its real 0-10 value', async () => {
-    const [activity] = await parseFIT(loadStub('2026-09-05-08-03-15.fit'));
+    const [activity] = await parseFIT(loadStub('run-long.fit'));
     expect(activity).toBeDefined();
     expect(activity!.activity.workoutRpe).toBe(4);
+  });
+});
+
+describe('parseFIT start instant', () => {
+  // session.start_time confirmed at 2025-09-16T17:42:14Z via direct inspection.
+  it('stores the session start as a UTC ISO instant alongside the UTC date', async () => {
+    const [activity] = await parseFIT(loadStub('run-easy.fit'));
+    expect(activity!.activity.startUtc).toBe('2025-09-16T17:42:14.000Z');
+    expect(activity!.activity.date).toBe('2025-09-16');
   });
 });
 
@@ -107,7 +117,7 @@ describe('parseFIT Garmin on-device VO2max / recovery time', () => {
   // confirmed real and effort-proportional across every one of this
   // project's stub files, not just this one.
   it('reads the real on-device VO2max and recovery time from a stub file known to have them', async () => {
-    const [activity] = await parseFIT(loadStub('2026-09-05-08-03-15.fit'));
+    const [activity] = await parseFIT(loadStub('run-long.fit'));
     expect(activity).toBeDefined();
     // Raw vo2_max was confirmed at 46.09526... via direct inspection.
     expect(activity!.activity.garminVo2Max).toBe(46.1);
@@ -117,7 +127,7 @@ describe('parseFIT Garmin on-device VO2max / recovery time', () => {
   });
 
   it('reads 0 for both on a sport activity_metrics does not compute VO2max for', async () => {
-    const [activity] = await parseFIT(loadStub('2026-08-30-09-22-05.fit'));
+    const [activity] = await parseFIT(loadStub('cardio-1.fit'));
     expect(activity).toBeDefined();
     expect(activity!.activity.sport.toLowerCase()).not.toContain('run');
     expect(activity!.activity.garminVo2Max).toBe(0);
@@ -126,7 +136,7 @@ describe('parseFIT Garmin on-device VO2max / recovery time', () => {
 
 describe('parseFIT swim lengths', () => {
   it('parses to an empty lengths array and poolLengthM 0 for a non-swim activity', async () => {
-    const [activity] = await parseFIT(loadStub('2026-08-31-18-37-54.fit'));
+    const [activity] = await parseFIT(loadStub('run-easy.fit'));
     expect(activity).toBeDefined();
     expect(activity!.lengths).toEqual([]);
     expect(activity!.activity.poolLengthM).toBe(0);
@@ -141,7 +151,7 @@ describe('parseFIT swim lengths', () => {
   // of 1279.272s - i.e. real rest is ~41% of the session's own elapsed
   // time, which is exactly the gap swimActiveDurationMin exists to exclude.
   it('parses real pool-swim length data and computes real active-only swim time', async () => {
-    const [activity] = await parseFIT(loadStub('2026-09-10-18-16-52.fit'));
+    const [activity] = await parseFIT(loadStub('pool-swim-2.fit'));
     expect(activity).toBeDefined();
     expect(activity!.activity.poolLengthM).toBe(22);
     expect(activity!.lengths.length).toBe(30);

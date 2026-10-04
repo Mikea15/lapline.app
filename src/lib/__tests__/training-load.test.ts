@@ -6,7 +6,9 @@ import {
   loadBand,
   acuteChronicRatio,
   runVolumeKm,
-  activityLoad
+  activityLoad,
+  loadHistoryDays,
+  MIN_HISTORY_DAYS
 } from '../training-load';
 
 // Fixed "today" so daysAgo()-based windows are deterministic. Built (and
@@ -128,6 +130,29 @@ describe('acuteChronicRatio', () => {
     const acts = [activity({ sport: 'running', durationMin: 60, date: daysAgoDate(-1) })];
     const result = acuteChronicRatio(acts);
     expect(result.acute7d).toBe(0);
+  });
+});
+
+describe('history threshold', () => {
+  const run = (ago: number) => activity({ sport: 'running', durationMin: 60, date: daysAgoDate(ago) });
+
+  it('measures days from the first load-bearing activity to today', () => {
+    expect(loadHistoryDays([])).toBe(0);
+    expect(loadHistoryDays([run(3), run(10)])).toBe(10);
+    // Sports that carry no load don't start the clock.
+    expect(loadHistoryDays([activity({ sport: 'yoga', durationMin: 60, date: daysAgoDate(50) }), run(2)])).toBe(2);
+  });
+
+  it('has no verdict with only a few days of history', () => {
+    const r = acuteChronicRatio([run(1), run(3), run(5)]);
+    expect(r.ratio).toBeGreaterThan(1.5); // the misleading spike
+    expect(r.hasHistory).toBe(false);
+  });
+
+  it('has a verdict from 28 days of history', () => {
+    expect(MIN_HISTORY_DAYS).toBe(28);
+    expect(acuteChronicRatio([run(1), run(27)]).hasHistory).toBe(false);
+    expect(acuteChronicRatio([run(1), run(28)]).hasHistory).toBe(true);
   });
 });
 

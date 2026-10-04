@@ -20,7 +20,7 @@
   import SkeletonChart from '../SkeletonChart.svelte';
   import SkeletonRows from '../SkeletonRows.svelte';
   import { sportFamily, formatSport, type SportFamily } from '../../lib/sport-color';
-  import { formatPace, formatElevation, formatTemp, formatSpeed, paceUnit, speedUnit, toDisplayElevation, elevationUnit } from '../../lib/units';
+  import { formatElevationRange, toDisplayDistance, distanceUnit, poolMeters, formatPace, formatElevation, formatTemp, formatSpeed, paceUnit, speedUnit, toDisplayElevation, elevationUnit } from '../../lib/units';
   import { formatDateLong, formatClock } from '../../lib/date-utils';
   import { trainingEffectLabel } from '../../lib/training-feel';
   import { altitudeRange as altitudeRangeOf } from '../../lib/altitude-range';
@@ -134,6 +134,7 @@
       return;
     }
     geocode(fix.lat, fix.lon).then((label) => {
+      if (label === null) return; // failed for now - leave undefined so a later visit retries
       activitiesStore.setLocationLabel(id, label);
       if (detail && detail.id === id) detail = { ...detail, locationLabel: label };
     });
@@ -152,7 +153,8 @@
       if (detail && detail.id === id) detail = { ...detail, weatherCondition: '' };
       return;
     }
-    lookupWeatherCondition(fix.lat, fix.lon, d.date, d.startTimeLabel).then((condition) => {
+    lookupWeatherCondition(fix.lat, fix.lon, d.date, d.startTimeLabel, d.startUtc).then((condition) => {
+      if (condition === null) return; // no answer yet (offline, archive lag) - retry on a later visit
       activitiesStore.setWeatherCondition(id, condition);
       if (detail && detail.id === id) detail = { ...detail, weatherCondition: condition };
     });
@@ -262,8 +264,8 @@
   // matching how the Activities ledger already displays swim distance.
   let heroDistance = $derived.by(() => {
     if (!detail || detail.distanceKm <= 0) return null;
-    if (sportFamily(detail.sport) === 'pool-swim') return { value: String(Math.round(detail.distanceKm * 1000)), unit: 'm' };
-    return { value: detail.distanceKm.toFixed(2), unit: 'km' };
+    if (sportFamily(detail.sport) === 'pool-swim') return { value: String(poolMeters(detail.distanceKm)), unit: 'm' };
+    return { value: toDisplayDistance(detail.distanceKm, unitSystem).toFixed(2), unit: distanceUnit(unitSystem) };
   });
 
   // Tape hero's second big number - the same per-sport "rate" the
@@ -452,6 +454,9 @@
   let paceStream = $derived(detail ? detail.speed.map((s) => 60 / Math.max(s, MIN_DISPLAY_SPEED)) : []);
 
   let altitudeRange = $derived(detail && hasAltitude ? altitudeRangeOf(detail.altitude) : null);
+  // Elevation chart's labelled min/max: the same trimmed range as the hero's
+  // Elevation range (in display units); the line is clamped to it.
+  let elevationDomain = $derived(altitudeRange ? { min: toDisplayElevation(altitudeRange.min, unitSystem), max: toDisplayElevation(altitudeRange.max, unitSystem) } : null);
 
   // Tape's effort-phase caption strip (bug-list.md): a real, deterministic
   // segmentation of this activity's own HR/pace streams - see
@@ -499,7 +504,7 @@
       {:else if sortedActivities.length === 0}
         <div class="empty-state">No activities match this filter.</div>
       {:else}
-        <ActivityLedger activities={sortedActivities} {unitSystem} prIds={allPrIds} onSelect={onSelectActivity} {sortKey} {sortDir} onSort={toggleSort} />
+        <ActivityLedger activities={sortedActivities} {unitSystem} prIds={allPrIds} onSelect={onSelectActivity} {sortKey} {sortDir} onSort={toggleSort} virtual />
       {/if}
     </div>
   {:else if loading || !detail}
@@ -579,8 +584,11 @@
           {#if !isPoolSwim}
             <div class="tape-hero-list-row">
               <span>Ascent</span>
-              <span>{detail.ascentM > 0 ? Math.round(toDisplayElevation(detail.ascentM, unitSystem)) : '—'} {elevationUnit(unitSystem)}{altitudeRange ? ` · ${Math.round(toDisplayElevation(altitudeRange.min, unitSystem))}-${Math.round(toDisplayElevation(altitudeRange.max, unitSystem))} ${elevationUnit(unitSystem)}` : ''}</span>
+              <span>{detail.ascentM > 0 ? Math.round(toDisplayElevation(detail.ascentM, unitSystem)) : '—'} {elevationUnit(unitSystem)}</span>
             </div>
+            {#if altitudeRange}
+              <div class="tape-hero-list-row"><span>Elevation range</span><span>{formatElevationRange(altitudeRange.min, altitudeRange.max, unitSystem)}</span></div>
+            {/if}
           {/if}
           {#if detail.aerobicTrainingEffect > 0}
             <div class="tape-hero-list-row"><span><InfoLabel text="Aerobic training effect est." tip="Your watch's estimate of how much this session improved your fitness, from 0 to 5. Aerobic is endurance; anaerobic is short, hard efforts." /></span><span>{detail.aerobicTrainingEffect.toFixed(1)} · {trainingEffectLabel(detail.aerobicTrainingEffect)}</span></div>
@@ -741,6 +749,7 @@
                     {hoveredLapIndex}
                     onHoverLap={(i) => (hoveredLapIndex = i)}
                     locationLabel={detail.locationLabel}
+                    {unitSystem}
                   />
                 {/if}
               </div>
@@ -773,7 +782,7 @@
                 {#if showElevationChart}
                   <div class="stream-row">
                     <span class="stream-row-label mono">Elevation</span>
-                    <StreamChart t={detail.t} values={elevationStream} formatTime={formatClock} formatValue={(v) => `${Math.round(v)} ${elevationUnit(unitSystem)}`} color="var(--ink-3)" bind:syncSeconds={chartSyncX} />
+                    <StreamChart t={detail.t} values={elevationStream} domain={elevationDomain} formatTime={formatClock} formatValue={(v) => `${Math.round(v)} ${elevationUnit(unitSystem)}`} color="var(--ink-3)" bind:syncSeconds={chartSyncX} />
                   </div>
                 {/if}
               </div>
@@ -834,7 +843,7 @@
     cursor: pointer;
   }
   .back-link:hover {
-    color: var(--accent);
+    color: var(--accent-ink);
     background: var(--bg-row-hover);
   }
 
@@ -847,7 +856,7 @@
   .tape-eyebrow {
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .tape-hero-row {
     display: flex;
@@ -874,11 +883,11 @@
     color: var(--ink-1);
   }
   .tape-hero-num.accent {
-    color: var(--accent);
+    color: var(--accent-ink);
   }
   .tape-hero-unit {
     font-size: var(--fs-base);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .tape-hero-list {
     display: flex;
@@ -893,7 +902,7 @@
     font-size: var(--fs-sm);
   }
   .tape-hero-list-row > span:first-child {
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .tape-hero-list-row > span:last-child {
     color: var(--ink-2);
@@ -958,7 +967,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
 
   /* Timeline stays pinned under the app header while everything below it

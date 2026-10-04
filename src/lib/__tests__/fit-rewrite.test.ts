@@ -37,6 +37,34 @@ describe('rewriteFit', () => {
   it('rejects something that is not a FIT file', () => {
     expect(() => rewriteFit(new TextEncoder().encode('<gpx></gpx> not a fit file at all'))).toThrow();
   });
+
+  it('drops single messages with filter, keeping the rest of their type', async () => {
+    const bytes = load('sample-run-long.fit');
+    let n = 0;
+    const out = rewriteFit(bytes, { filter: (m) => m.global !== 20 || n++ % 2 === 0 }); // every other record
+    const [a] = await parseFIT(bytes);
+    const [b] = await parseFIT(out);
+    expect(b!.records.length).toBe(Math.ceil(a!.records.length / 2));
+    expect(b!.laps.length).toBe(a!.laps.length);
+  });
+
+  it('reads and writes array fields', () => {
+    const bytes = load('sample-run-long.fit');
+    const out = rewriteFit(bytes, {
+      edit(m) {
+        if (m.global !== 216) return;
+        const times = m.getArray(2)!; // time_in_hr_zone
+        expect(times.length).toBe(7);
+        expect(m.get(2)).toBeNull(); // get() is for single values only
+        m.setArray(2, times.map(() => 1000));
+      }
+    });
+    rewriteFit(out, {
+      edit(m) {
+        if (m.global === 216) expect(m.getArray(2)).toEqual([1000, 1000, 1000, 1000, 1000, 1000, 1000]);
+      }
+    });
+  });
 });
 
 describe('shiftFitTimestamps', () => {

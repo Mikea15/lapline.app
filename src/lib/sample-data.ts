@@ -31,7 +31,7 @@ export async function fetchSampleFiles(now = new Date()): Promise<File[]> {
   const newest = Math.max(...raw.map((r) => lastFitTimestamp(r.bytes) ?? 0));
   const yesterdayEvening = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 19, 0, 0);
   const delta = yesterdayEvening.getTime() / 1000 - FIT_EPOCH_OFFSET - newest;
-  return raw.map((r) => new File([shiftFitTimestamps(r.bytes, delta)], SAMPLE_PREFIX + r.name, { type: 'application/octet-stream' }));
+  return raw.map((r) => new File([shiftFitTimestamps(r.bytes, delta)], SAMPLE_PREFIX + r.name.replace(/^sample-/, ''), { type: 'application/octet-stream' }));
 }
 
 /** How many stored activities came from sample files. */
@@ -54,11 +54,12 @@ async function sampleFileIds(): Promise<number[]> {
 export async function removeSampleData(): Promise<number> {
   const fileIds = await sampleFileIds();
   if (fileIds.length === 0) return 0;
-  return db.transaction('rw', [db.activities, db.activityRecords, db.activityLaps, db.activityLengths, db.fitFiles, db.fitFileBlobs], async () => {
+  return db.transaction('rw', [db.activities, db.activityRecords, db.activityLaps, db.activityLengths, db.activityEfforts, db.fitFiles, db.fitFileBlobs], async () => {
     const activityIds = (await db.activities.where('sourceFileId').anyOf(fileIds).primaryKeys()) as number[];
     await db.activityRecords.where('activityId').anyOf(activityIds).delete();
     await db.activityLaps.where('activityId').anyOf(activityIds).delete();
     await db.activityLengths.where('activityId').anyOf(activityIds).delete();
+    await db.activityEfforts.bulkDelete(activityIds);
     await db.activities.bulkDelete(activityIds);
     await db.fitFileBlobs.bulkDelete(fileIds);
     await db.fitFiles.bulkDelete(fileIds);

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Activity, ActivityDetail } from '../types';
 import { criticalPaceCurves, CRITICAL_PACE_DURATIONS_SEC } from '../critical-pace';
+import { effortsFromDetails } from './efforts-lookup';
 
 const TODAY = new Date(2024, 5, 15, 12, 0, 0);
 beforeEach(() => vi.useFakeTimers().setSystemTime(TODAY));
@@ -77,9 +78,9 @@ describe('criticalPaceCurves', () => {
       [previous.id, constantPaceDetail(previous, 4)], // 4 m/s = 4:10/km
       [tooOld.id, constantPaceDetail(tooOld, 10)]
     ]);
-    const getDetail = async (id: number) => details.get(id) ?? null;
+    const getEfforts = effortsFromDetails(details);
 
-    const curves = await criticalPaceCurves([recent, previous, tooOld], getDetail, daysAgoDate(6), daysAgoDate(0));
+    const curves = await criticalPaceCurves([recent, previous, tooOld], getEfforts, daysAgoDate(6), daysAgoDate(0));
 
     for (const point of curves.thisRange) {
       expect(point.paceMinPerKm).not.toBeNull();
@@ -93,7 +94,7 @@ describe('criticalPaceCurves', () => {
   it('returns null pace points when no activity covers a given duration', async () => {
     const short = activity({ date: daysAgoDate(1) });
     const details = new Map([[short.id, constantPaceDetail(short, 3, 30)]]); // only 30s of data
-    const curves = await criticalPaceCurves([short], async (id) => details.get(id) ?? null, daysAgoDate(6), daysAgoDate(0));
+    const curves = await criticalPaceCurves([short], effortsFromDetails(details), daysAgoDate(6), daysAgoDate(0));
     const longest = curves.thisRange[curves.thisRange.length - 1]!;
     expect(longest.durationSec).toBe(CRITICAL_PACE_DURATIONS_SEC[CRITICAL_PACE_DURATIONS_SEC.length - 1]);
     expect(longest.paceMinPerKm).toBeNull();
@@ -102,7 +103,7 @@ describe('criticalPaceCurves', () => {
   it('excludes non-running activities from the curve', async () => {
     const ride = activity({ sport: 'cycling', date: daysAgoDate(1) });
     const details = new Map([[ride.id, constantPaceDetail(ride, 8)]]);
-    const curves = await criticalPaceCurves([ride], async (id) => details.get(id) ?? null, daysAgoDate(6), daysAgoDate(0));
+    const curves = await criticalPaceCurves([ride], effortsFromDetails(details), daysAgoDate(6), daysAgoDate(0));
     expect(curves.thisRange.every((p) => p.paceMinPerKm === null)).toBe(true);
   });
 });

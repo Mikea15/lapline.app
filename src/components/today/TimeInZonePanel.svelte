@@ -5,7 +5,7 @@
 <script lang="ts">
   import InfoLabel from '../InfoLabel.svelte';
   import type { Activity } from '../../lib/types';
-  import { ZONE_COLORS, ZONE_NAMES } from '../../lib/hr-zones';
+  import { ZONE_COLORS, ZONE_INK, ZONE_ON, ZONE_NAMES } from '../../lib/hr-zones';
   import { zoneSeconds, weeklyZoneSeconds, intensityShares, POLARISED_TARGETS, type IntensityShare } from '../../lib/today-kpis';
   import { bucketStartDate, formatDateShort } from '../../lib/date-utils';
   import { settingsStore } from '../../lib/stores.svelte';
@@ -86,7 +86,7 @@
           <div class="tiz-stat">
             <div class="tiz-stat-value"><span class="num mono" style="color: {SHARE_META[s.key].color};">{Math.round(s.pct)}</span><span class="unit mono">%</span></div>
             <span class="tiz-stat-label mono">{SHARE_META[s.key].label} · {SHARE_META[s.key].zones}</span>
-            <span class="tiz-target mono" style="color: {s.onTarget ? 'var(--positive)' : 'var(--caution)'};">{targetText(s)}</span>
+            <span class="tiz-target mono" style="color: {s.onTarget ? 'var(--positive-ink)' : 'var(--caution-ink)'};">{targetText(s)}</span>
           </div>
         {/each}
       </div>
@@ -97,7 +97,7 @@
     <div class="zone-bar">
       {#each zones as v, i (i)}
         {#if v > 0}
-          <div class="zone-seg mono" style="flex: {v} 0 0; background: {ZONE_COLORS[i]};" title="Z{i + 1} {ZONE_NAMES[i]}: {hm(v)} · {Math.round((v / total) * 100)}%">
+          <div class="zone-seg mono" style="flex: {v} 0 0; background: {ZONE_COLORS[i]}; color: {ZONE_ON[i]};" title="Z{i + 1} {ZONE_NAMES[i]}: {hm(v)} · {Math.round((v / total) * 100)}%">
             <b>Z{i + 1}</b><span class="zone-seg-detail">{hm(v)} · {Math.round((v / total) * 100)}%</span>
           </div>
         {/if}
@@ -131,7 +131,7 @@
 
       <div class="zone-list">
         {#each zones as v, i (i)}
-          <span class="zl-zone mono" style="color: {ZONE_COLORS[i]};">Z{i + 1}</span>
+          <span class="zl-zone mono" style="color: {ZONE_INK[i]};">Z{i + 1}</span>
           <span class="zl-name">{ZONE_NAMES[i]}</span>
           <span class="zl-track"><span style="width: {(v / maxZone) * 100}%; background: {ZONE_COLORS[i]};"></span></span>
           <span class="zl-time mono">{hm(v)}</span>
@@ -186,7 +186,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .tiz-target {
     font-size: var(--fs-xs);
@@ -217,7 +217,6 @@
   .zone-seg-detail {
     overflow: hidden;
     text-overflow: clip;
-    opacity: 0.85;
   }
   .target {
     position: absolute;
@@ -256,7 +255,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .weeks {
     display: flex;
@@ -289,7 +288,7 @@
     min-width: 0;
     height: 1.4em;
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .week-label-text {
     position: absolute;

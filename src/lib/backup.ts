@@ -12,7 +12,10 @@
 // through the normal import pipeline, so the restored data is parsed by the
 // *current* parser (the same idea as Settings > "Re-parse stored files"),
 // and the format never has to track the IndexedDB schema.
-import { zip, unzip, strToU8, strFromU8, type Zippable } from 'fflate';
+import { zip, unzip, strToU8, strFromU8, type Zippable, type UnzipFileFilter } from 'fflate';
+import { MAX_IMPORT_FILE_BYTES, MAX_ZIP_BYTES, MAX_ZIP_CONTENT_BYTES, type ImportFailureReason } from './import-failure';
+
+const DAMAGED_BACKUP = "This backup is damaged and can't be restored. Make a new backup in the browser you came from.";
 
 export const BACKUP_FORMAT = 'lapline-backup';
 export const BACKUP_FORMAT_VERSION = 1;
@@ -39,9 +42,18 @@ export interface BackupSourceFile {
   data: Uint8Array;
 }
 
-// Settings that describe this browser rather than the user's preferences -
-// never carried to another browser.
-const NON_PORTABLE_SETTINGS = new Set<string>(['has_seen_welcome']);
+// Never carried to another browser: settings that describe this browser
+// rather than the user's preferences, and the opt-ins that send data to
+// outside services (the get*Enabled getters in stores.svelte.ts). Consent
+// belongs to the browser that will make the requests, so after a restore
+// each stays off until the user turns it on there.
+const NON_PORTABLE_SETTINGS = new Set<string>([
+  'has_seen_welcome',
+  'analytics_enabled',
+  'location_lookup_enabled',
+  'map_tiles_enabled',
+  'weather_lookup_enabled'
+]);
 
 // "files/0007-Morning Run.fit" - the index prefix keeps paths unique when two
 // imports share a filename, and keeps the zip in original import order. Path
@@ -75,7 +87,7 @@ export function parseManifest(json: string): BackupManifest {
   try {
     raw = JSON.parse(json);
   } catch {
-    throw new Error("This backup is damaged and can't be restored. Make a new backup in the browser you came from.");
+    throw new Error(DAMAGED_BACKUP);
   }
   const m = raw as Partial<BackupManifest> | null;
   if (!m || m.format !== BACKUP_FORMAT) throw new Error("This .zip isn't a Lapline backup.");
@@ -83,7 +95,7 @@ export function parseManifest(json: string): BackupManifest {
     throw new Error('This backup was made by a newer version of Lapline. Reload the app to update, then try again.');
   }
   if (!Array.isArray(m.files) || !m.files.every((f) => f && typeof f.path === 'string' && typeof f.filename === 'string')) {
-    throw new Error("This backup is damaged and can't be restored. Make a new backup in the browser you came from.");
+    throw new Error(DAMAGED_BACKUP);
   }
   const settings: Record<string, string> = {};
   if (m.settings && typeof m.settings === 'object') {
@@ -120,39 +132,97 @@ export interface RestoredBackup {
   manifest: BackupManifest | null;
   files: { filename: string; data: Uint8Array }[];
   missing: string[]; // manifest entries whose bytes weren't in the zip
+  /** Files left packed because of the size limits, with the reason. */
+  skipped: { filename: string; reason: ImportFailureReason }[];
 }
 
-export async function readBackupZip(bytes: Uint8Array): Promise<RestoredBackup> {
-  const entries = await new Promise<Record<string, Uint8Array>>((resolve, reject) => {
-    unzip(bytes, (err, out) => (err ? reject(new Error("This file isn't a readable .zip.")) : resolve(out)));
+export interface ZipLimits {
+  /** Per unpacked file. */
+  fileBytes: number;
+  /** All unpacked files together. */
+  totalBytes: number;
+}
+
+const ZIP_LIMITS: ZipLimits = { fileBytes: MAX_IMPORT_FILE_BYTES, totalBytes: MAX_ZIP_CONTENT_BYTES };
+
+/** Shown instead of opening a .zip over MAX_ZIP_BYTES (read whole into memory). */
+export const ZIP_TOO_LARGE_MESSAGE = `This .zip is over ${MAX_ZIP_BYTES / (1024 * 1024)} MB, too large to open here. Unzip it and import the .fit and .gpx files in smaller batches.`;
+
+// Unpacks only the entries `wanted` accepts, within the size limits; the
+// rest stay compressed and cost nothing. The sizes come from the zip's own
+// headers, which a hostile zip can lie about, but fflate never inflates an
+// entry past its stated `originalSize`, and a stored entry is `size` bytes,
+// so the larger of the two bounds what each entry can take in memory.
+function unzipSome(
+  bytes: Uint8Array,
+  wanted: (path: string) => boolean,
+  limits: ZipLimits,
+  skipped: Map<string, ImportFailureReason>
+): Promise<Record<string, Uint8Array>> {
+  let total = 0;
+  const filter: UnzipFileFilter = (f) => {
+    if (!wanted(f.name)) return false;
+    const size = Math.max(f.size, f.originalSize);
+    if (size > limits.fileBytes) {
+      skipped.set(f.name, 'too_large');
+      return false;
+    }
+    if (total + size > limits.totalBytes) {
+      skipped.set(f.name, 'zip_too_large');
+      return false;
+    }
+    total += size;
+    return true;
+  };
+  return new Promise((resolve, reject) => {
+    unzip(bytes, { filter }, (err, out) => (err ? reject(new Error("This file isn't a readable .zip.")) : resolve(out)));
   });
-  const manifestBytes = entries[MANIFEST_PATH];
-  if (!manifestBytes) {
-    const files = workoutFilesIn(entries);
-    if (files.length === 0) throw new Error('This .zip has no workouts or Lapline backup in it.');
-    return { manifest: null, files, missing: [] };
+}
+
+function baseName(path: string): string {
+  return path.split('/').pop() ?? '';
+}
+
+// A .fit/.gpx anywhere in the zip, but not macOS metadata (__MACOSX/, ._ files).
+function isWorkoutPath(path: string): boolean {
+  const name = baseName(path);
+  return !path.startsWith('__MACOSX/') && !name.startsWith('.') && /\.(fit|gpx)$/i.test(name);
+}
+
+/**
+ * Reads a Lapline backup, or any zip of .fit/.gpx files. Two passes over the
+ * zip's directory: the first unpacks only the manifest, the second only the
+ * files it lists (or, with no manifest, the workout files), so nothing else
+ * in a big export - inner zips, photos, health data - is ever unpacked.
+ */
+export async function readBackupZip(bytes: Uint8Array, limits: ZipLimits = ZIP_LIMITS): Promise<RestoredBackup> {
+  const tooLarge = new Map<string, ImportFailureReason>();
+  const head = await unzipSome(bytes, (path) => path === MANIFEST_PATH, limits, tooLarge);
+  if (tooLarge.has(MANIFEST_PATH)) throw new Error(DAMAGED_BACKUP);
+  const manifestBytes = head[MANIFEST_PATH];
+  const manifest = manifestBytes ? parseManifest(strFromU8(manifestBytes)) : null;
+
+  const listed = manifest ? new Set(manifest.files.map((f) => f.path)) : null;
+  const entries = await unzipSome(bytes, (path) => (listed ? listed.has(path) : isWorkoutPath(path)), limits, tooLarge);
+
+  if (!manifest) {
+    // Each under its own name, folders dropped.
+    const files = Object.entries(entries).map(([path, data]) => ({ filename: baseName(path), data }));
+    const skipped = [...tooLarge].map(([path, reason]) => ({ filename: baseName(path), reason }));
+    if (files.length === 0 && skipped.length === 0) throw new Error('This .zip has no workouts or Lapline backup in it.');
+    return { manifest: null, files, missing: [], skipped };
   }
-  const manifest = parseManifest(strFromU8(manifestBytes));
   const files: RestoredBackup['files'] = [];
   const missing: string[] = [];
+  const skipped: RestoredBackup['skipped'] = [];
   for (const f of manifest.files) {
     const data = entries[f.path];
+    const reason = tooLarge.get(f.path);
     if (data) files.push({ filename: f.filename, data });
+    else if (reason) skipped.push({ filename: f.filename, reason });
     else missing.push(f.filename);
   }
-  return { manifest, files, missing };
-}
-
-// Every .fit/.gpx anywhere in the zip, under its own name (folders dropped),
-// skipping macOS metadata (__MACOSX/, ._ files).
-function workoutFilesIn(entries: Record<string, Uint8Array>): RestoredBackup['files'] {
-  const files: RestoredBackup['files'] = [];
-  for (const [path, data] of Object.entries(entries)) {
-    const name = path.split('/').pop() ?? '';
-    if (path.startsWith('__MACOSX/') || name.startsWith('.') || !/\.(fit|gpx)$/i.test(name)) continue;
-    files.push({ filename: name, data });
-  }
-  return files;
+  return { manifest, files, missing, skipped };
 }
 
 export function backupFilename(now: Date): string {

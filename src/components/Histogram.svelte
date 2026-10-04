@@ -11,9 +11,11 @@
     emptyText?: string;
     /** Plural noun for the "n = " footer, e.g. "splits", "activities". */
     unitLabel?: string;
+    /** What is distributed, for the screen-reader name: "Split pace", "Activity distance"... */
+    label?: string;
   }
 
-  let { values, formatValue, emptyText = 'Not enough data yet.', unitLabel = 'samples' }: Props = $props();
+  let { values, formatValue, emptyText = 'Not enough data yet.', unitLabel = 'samples', label = 'Value' }: Props = $props();
 
   const MIN_BINS = 12;
   const MAX_BINS = 100;
@@ -87,7 +89,7 @@
   {#if n === 0}
     <div class="empty-state" style="padding: var(--space-10) var(--space-4);">{emptyText}</div>
   {:else}
-    <svg use:touchHover viewBox="0 0 {VB_W} {PLOT_H}" preserveAspectRatio="none" class="hist-svg" role="img" aria-label="Distribution histogram">
+    <svg use:touchHover viewBox="0 0 {VB_W} {PLOT_H}" preserveAspectRatio="none" class="hist-svg" role="img" aria-label="{label} distribution, {n} {unitLabel}: median {formatValue(median)}, middle 80% from {formatValue(p10)} to {formatValue(p90)}, most common around {formatValue(domainMin + (modalBinIndex + 0.5) * binWidth)}">
       {#each bins as count, i (i)}
         {@const h = (count / maxCount) * PLOT_H}
         {@const inModalBand = Math.abs(i - modalBinIndex) <= 1}

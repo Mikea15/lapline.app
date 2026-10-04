@@ -34,10 +34,10 @@
 </script>
 
 <div class="segmented sport-filter" role="group" aria-label="Activity type">
-  <button type="button" class:active={selected.size === 0} onclick={selectAll}>All sports</button>
+  <button type="button" class:active={selected.size === 0} aria-pressed={selected.size === 0} onclick={selectAll}>All sports</button>
   {#each SPORTS as t (t)}
-    <button type="button" class:active={selected.has(t)} onclick={() => toggle(t)}>
-      <span class="filter-pill-swatch" style="background: {familyColorVar(t)};"></span>
+    <button type="button" class:active={selected.has(t)} aria-pressed={selected.has(t)} onclick={() => toggle(t)}>
+      <span class="filter-pill-swatch" aria-hidden="true" style="background: {familyColorVar(t)};"></span>
       {familyLabel(t)}
     </button>
   {/each}

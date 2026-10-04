@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { Activity, ActivityDetail } from '../types';
 import { computeAllRecords, currentRecordHolderIds, milestoneLadders } from '../records';
+import { effortsFromDetails } from './efforts-lookup';
 
 let nextId = 1;
 function activity(overrides: Partial<Activity>): Activity {
@@ -60,10 +61,6 @@ function detailFor(a: Activity, km: number, secPerKm: number): ActivityDetail {
   };
 }
 
-function detailLookup(details: Map<number, ActivityDetail>) {
-  return async (id: number) => details.get(id) ?? null;
-}
-
 describe('computeAllRecords', () => {
   it('finds the fastest pace-distance effort and its history, best-only', async () => {
     const slow = activity({ sport: 'running', date: '2024-01-01' });
@@ -72,7 +69,7 @@ describe('computeAllRecords', () => {
       [slow.id, detailFor(slow, 5, 300)], // 5km @ 5:00/km
       [fast.id, detailFor(fast, 5, 240)] // 5km @ 4:00/km (PR)
     ]);
-    const records = await computeAllRecords([slow, fast], detailLookup(details));
+    const records = await computeAllRecords([slow, fast], effortsFromDetails(details));
     const r5k = records.find((r) => r.key === '5km')!;
     expect(r5k.bestValue).toBeCloseTo(1200, 1); // 4:00/km * 5km = 1200s
     expect(r5k.setByActivityId).toBe(fast.id);
@@ -87,7 +84,7 @@ describe('computeAllRecords', () => {
       [fast.id, detailFor(fast, 5, 240)],
       [slow.id, detailFor(slow, 5, 300)]
     ]);
-    const records = await computeAllRecords([fast, slow], detailLookup(details));
+    const records = await computeAllRecords([fast, slow], effortsFromDetails(details));
     const r5k = records.find((r) => r.key === '5km')!;
     expect(r5k.setByActivityId).toBe(fast.id);
     expect(r5k.history).toHaveLength(1);

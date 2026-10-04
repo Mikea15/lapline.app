@@ -213,7 +213,7 @@
         <InfoLabel class="c-stat-label" text="Last 14 days" tip="The share of the last 14 days, today included, with at least one activity." />
       </div>
       <div class="c-stat">
-        <div class="c-stat-value"><span class="num" style="color: var(--accent);">{bestStreak}</span><span class="unit">{bestStreak === 1 ? 'day' : 'days'}</span></div>
+        <div class="c-stat-value"><span class="num" style="color: var(--accent-ink);">{bestStreak}</span><span class="unit">{bestStreak === 1 ? 'day' : 'days'}</span></div>
         <InfoLabel
           class="c-stat-label"
           text="Best streak"
@@ -347,7 +347,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
 
   .c-body {
@@ -370,7 +370,7 @@
   }
   .day-label {
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
     height: 14px;
     line-height: 14px;
   }
@@ -476,7 +476,7 @@
     color: var(--ink-3);
   }
   .sport-days {
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .swatch {
     width: 10px;
@@ -488,7 +488,7 @@
     align-items: center;
     gap: var(--space-2);
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .depth-title {
     margin-right: var(--space-5);

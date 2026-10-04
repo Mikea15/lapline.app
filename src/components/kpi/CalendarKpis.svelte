@@ -12,6 +12,7 @@
   import { hoursBySport } from '../../lib/today-kpis';
   import { activityLoad } from '../../lib/training-load';
   import { formatDateShort } from '../../lib/date-utils';
+  import { monthCompareWindow } from '../../lib/calendar-grid';
   import { toDisplayDistance, distanceUnit, type UnitSystem } from '../../lib/units';
 
   interface Props {
@@ -31,13 +32,17 @@
   const ym = (y: number, m: number) => `${y}-${pad2(m)}`;
 
   let key = $derived(ym(year, month));
-  let prevKey = $derived(month === 1 ? ym(year - 1, 12) : ym(year, month - 1));
   let monthName = $derived(MONTHS[month - 1]!);
   let prevName = $derived(MONTHS[(month + 10) % 12]!);
+  // The slice of last month this month is compared with (month-to-date for
+  // the month in progress, so a partial month isn't set against a whole one).
+  let cmp = $derived(monthCompareWindow(year, month, today));
   let isCurrent = $derived(today.startsWith(key));
 
   let inMonth = $derived(activities.filter((a) => a.date.startsWith(key)));
-  let inPrev = $derived(activities.filter((a) => a.date.startsWith(prevKey)));
+  let inPrev = $derived(cmp ? activities.filter((a) => a.date >= cmp.prevStart && a.date <= cmp.prevEnd) : []);
+  // Month-to-date totals of the viewed month (everything in it, up to today).
+  let inMonthCmp = $derived(inMonth.filter((a) => a.date <= today));
 
   let byDate = $derived.by(() => {
     const m = new Map<string, Activity[]>();
@@ -88,8 +93,9 @@
   // One bar per calendar week, counting only this month's days.
   function weekBars(value: (acts: Activity[]) => number, fmt: (v: number) => string): MiniBar[] {
     return weeks.map((w) => {
-      const days = w.filter((d) => d.startsWith(key));
+      const days = w.filter((d) => d.startsWith(key) && d <= today);
       const v = value(days.flatMap((d) => byDate.get(d) ?? []));
+      if (w[0]! > today) return { value: 0, title: `Week of ${formatDateShort(w[0]!)}: not yet` };
       return { value: v, title: `Week of ${formatDateShort(w[0]!)}: ${fmt(v)}` };
     });
   }
@@ -116,6 +122,9 @@
   let prevKm = $derived(inPrev.reduce((s, a) => s + a.distanceKm, 0));
   let unit = $derived(distanceUnit(unitSystem));
   let kmBars = $derived(weekBars((acts) => acts.reduce((s, a) => s + a.distanceKm, 0), (v) => `${toDisplayDistance(v, unitSystem).toFixed(1)} ${unit}`));
+  let kmCmp = $derived(inMonthCmp.reduce((s, a) => s + a.distanceKm, 0));
+  let loadCmp = $derived(inMonthCmp.reduce((s, a) => s + activityLoad(a), 0));
+  let cmpLabel = $derived(cmp?.label ?? prevName.slice(0, 3));
   let load = $derived(inMonth.reduce((s, a) => s + activityLoad(a), 0));
   let prevLoad = $derived(inPrev.reduce((s, a) => s + activityLoad(a), 0));
   let loadBars = $derived(weekBars((acts) => acts.reduce((s, a) => s + activityLoad(a), 0), (v) => `${Math.round(v)} au`));
@@ -128,7 +137,7 @@
     label="Sessions"
     tip="Sessions recorded in {monthName}. Each day is coloured by its main sport."
     edge="var(--accent)"
-    chip={change(sessions, inPrev.length, (d) => `${d > 0 ? '+' : ''}${d} vs ${prevName.slice(0, 3)}`)}
+    chip={change(inMonthCmp.length, inPrev.length, (d) => `${d > 0 ? '+' : ''}${d} vs ${cmpLabel}`)}
     caption={isCurrent ? 'this month' : `${monthName} ${year}`}
   >
     <div class="kpi-value-row"><span class="kpi-value">{sessions}</span></div>
@@ -151,7 +160,7 @@
     label="Distance"
     tip="Total distance in {monthName}, across all sports. Bars are each calendar week."
     edge="var(--sport-running)"
-    chip={change(km, prevKm, () => `${pct(km, prevKm)} vs ${prevName.slice(0, 3)}`)}
+    chip={change(kmCmp, prevKm, () => `${pct(kmCmp, prevKm)} vs ${cmpLabel}`)}
     caption="by week"
   >
     <div class="kpi-value-row"><span class="kpi-value">{toDisplayDistance(km, unitSystem).toFixed(1)}</span><span class="kpi-unit">{unit}</span></div>
@@ -162,7 +171,7 @@
     label="Month load"
     tip="Training load for {monthName}: hours of running, cycling and swimming, weighted by sport. Bars are each calendar week."
     edge="var(--zone-4)"
-    chip={change(load, prevLoad, () => `${pct(load, prevLoad)} vs ${prevName.slice(0, 3)}`)}
+    chip={change(loadCmp, prevLoad, () => `${pct(loadCmp, prevLoad)} vs ${cmpLabel}`)}
     caption={prevLoad > 0 ? 'by week' : `no ${prevName} data`}
   >
     <div class="kpi-value-row"><span class="kpi-value">{Math.round(load)}</span><span class="kpi-unit">au</span></div>

@@ -190,7 +190,7 @@
   {#if importStore.state.status === 'processing' || importStore.state.status === 'done'}
     <div class="mt-4 card" style="padding: var(--space-4) 0;">
       <div class="import-file-list">
-        {#each importStore.state.files as f (f.name)}
+        {#each importStore.state.files as f, i (i)}
           <div class="import-file-row" class:error={f.status === 'error'}>
             <span class="import-file-status">
               {#if f.status === 'pending'}
@@ -232,6 +232,9 @@
           <div class="stat-label" style="margin-top: var(--space-1);">Errors</div>
         </div>
       </div>
+      {#if importStore.state.result?.sampleRemoved}
+        <p style="margin: var(--space-6) 0 0; font-size: var(--fs-md); color: var(--ink-muted);">Sample data removed, so only your own workouts are shown.</p>
+      {/if}
       {#if importStore.state.result?.errors.length}
         <p style="margin: var(--space-6) 0 0; font-size: var(--fs-md); color: var(--ink-muted);">Files marked ✕ weren't imported. The reason is next to each one.</p>
       {/if}

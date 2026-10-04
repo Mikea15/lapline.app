@@ -12,9 +12,8 @@ export default defineConfig({
   plugins: [svelte(), perfBundlePlugin(), serviceWorkerPlugin(), changelogPlugin()],
   build: {
     target: 'es2022',
-    minify: 'esbuild',
     // The landing page at /, the app itself at /app/, the changelog and the guides.
-    rollupOptions: {
+    rolldownOptions: {
       input: {
         landing: fileURLToPath(new URL('./index.html', import.meta.url)),
         app: fileURLToPath(new URL('./app/index.html', import.meta.url)),

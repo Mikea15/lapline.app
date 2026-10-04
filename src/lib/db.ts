@@ -4,6 +4,7 @@
 
 import Dexie from 'dexie';
 import type { Entry, Activity, RecordPoint, Lap, SwimLength, Goal, Setting, StoredFitFile, FitFileBlob, DeviceSyncHandle } from './types';
+import type { ActivityEfforts } from './activity-efforts';
 
 export class HealthTrackerDB extends Dexie {
   entries!: Dexie.Table<Entry, number>;
@@ -11,6 +12,7 @@ export class HealthTrackerDB extends Dexie {
   activityRecords!: Dexie.Table<RecordPoint & { activityId: number }, number>;
   activityLaps!: Dexie.Table<Lap & { activityId: number }, number>;
   activityLengths!: Dexie.Table<SwimLength & { activityId: number }, number>;
+  activityEfforts!: Dexie.Table<ActivityEfforts, number>;
   fitFiles!: Dexie.Table<StoredFitFile, number>;
   fitFileBlobs!: Dexie.Table<FitFileBlob, number>;
   goals!: Dexie.Table<Goal, string>;
@@ -121,6 +123,47 @@ export class HealthTrackerDB extends Dexie {
       deviceSync: '&key'
     });
 
+    // v7: activityRecords (one row per recorded second) drops every index
+    // except activityId - the only one ever queried. Each extra index cost a
+    // write per row on import and disk per row forever; `ts` never matched a
+    // field at all (the offset is `t`). Rows come back in activityId, then
+    // primary-key order: the order they were bulk-added in, which is the
+    // parser's time order, so nothing needs sorting on read.
+    this.version(7).stores({
+      entries: '++id, &date, weight, mood, steps, sleep, note, createdAt',
+      activities: '++id, date, sport, [date+sport], sourceFileId',
+      activityRecords: '++id, activityId',
+      activityLaps: '++id, activityId',
+      activityLengths: '++id, activityId',
+      fitFiles: '++id, filename, importedAt',
+      fitFileBlobs: 'id',
+      goals: '&key, target, updatedAt',
+      settings: '&key, value',
+      deviceSync: '&key'
+    });
+
+    // v8: added activityEfforts, one small row per activity (keyed by its
+    // id) of the best efforts and km splits the whole-history screens need
+    // (lib/activity-efforts.ts), so Records, Trends and Today's VO2max stop
+    // reading every recorded second of every run on each visit. No upgrade
+    // function: computing rows reads all the records, too slow for the
+    // version-change transaction that blocks the app opening. Rows are
+    // written on import/re-parse and filled in for existing activities in
+    // the background after boot (lib/efforts-store.ts).
+    this.version(8).stores({
+      entries: '++id, &date, weight, mood, steps, sleep, note, createdAt',
+      activities: '++id, date, sport, [date+sport], sourceFileId',
+      activityRecords: '++id, activityId',
+      activityLaps: '++id, activityId',
+      activityLengths: '++id, activityId',
+      activityEfforts: 'activityId',
+      fitFiles: '++id, filename, importedAt',
+      fitFileBlobs: 'id',
+      goals: '&key, target, updatedAt',
+      settings: '&key, value',
+      deviceSync: '&key'
+    });
+
     // Ensure date+sport uniqueness for activities (Dexie handles via compound index)
     // Note: Dexie's [date+sport] creates a compound index but not a unique constraint.
     // We'll enforce uniqueness at the application level in saveActivities().
@@ -137,23 +180,9 @@ export async function isFirstRun(): Promise<boolean> {
 
 // Helper: wipe every table (used by Settings > "Reset all data"). Empties
 // the object stores rather than deleting the database itself, so the app
-// keeps working immediately without a reload.
+// keeps working immediately without a reload. Goes over db.tables rather
+// than a hand-kept list, so a table added later can't be missed (deviceSync,
+// the remembered device folder, once was).
 export async function resetAllData(): Promise<void> {
-  await db.transaction(
-    'rw',
-    [db.entries, db.activities, db.activityRecords, db.activityLaps, db.activityLengths, db.fitFiles, db.fitFileBlobs, db.goals, db.settings],
-    async () => {
-      await Promise.all([
-        db.entries.clear(),
-        db.activities.clear(),
-        db.activityRecords.clear(),
-        db.activityLaps.clear(),
-        db.activityLengths.clear(),
-        db.fitFiles.clear(),
-        db.fitFileBlobs.clear(),
-        db.goals.clear(),
-        db.settings.clear()
-      ]);
-    }
-  );
+  await db.transaction('rw', db.tables, () => Promise.all(db.tables.map((t) => t.clear())));
 }

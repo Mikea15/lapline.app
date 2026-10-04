@@ -3,7 +3,7 @@
      picked out, and the change in points against the range before. -->
 <script lang="ts">
   import KpiCard from './KpiCard.svelte';
-  import { ZONE_COLORS } from '../../lib/hr-zones';
+  import { ZONE_COLORS, ZONE_ON } from '../../lib/hr-zones';
 
   interface Props {
     /** Seconds in zones 1-5 over the selected range, and the range before. */
@@ -22,7 +22,7 @@
   let total = $derived(zones.reduce((s, v) => s + v, 0));
   let pct = $derived(z2Pct(zones));
   let prevPct = $derived(z2Pct(prevZones));
-  let segments = $derived(zones.map((v, i) => ({ zone: i + 1, share: total > 0 ? (v / total) * 100 : 0, color: ZONE_COLORS[i]! })));
+  let segments = $derived(zones.map((v, i) => ({ zone: i + 1, share: total > 0 ? (v / total) * 100 : 0, color: ZONE_COLORS[i]!, on: ZONE_ON[i]! })));
   let belowShare = $derived(segments[0]!.share);
   let aboveShare = $derived(segments.slice(2).reduce((s, seg) => s + seg.share, 0));
 
@@ -49,7 +49,7 @@
       <div class="bar">
         {#each segments as seg (seg.zone)}
           {#if seg.share > 0}
-            <span class="seg mono" class:base={seg.zone === 2} style="flex: {seg.share} 0 0; background: {seg.color};">{seg.share >= 9 ? `z${seg.zone}` : ''}</span>
+            <span class="seg mono" class:base={seg.zone === 2} style="flex: {seg.share} 0 0; --seg: {seg.color}; --seg-on: {seg.on};">{seg.share >= 9 ? `z${seg.zone}` : ''}</span>
           {/if}
         {/each}
       </div>
@@ -81,13 +81,16 @@
     border-radius: 1px;
     font-size: var(--fs-xs);
     font-weight: var(--fw-semibold);
-    color: var(--on-accent);
+    /* Context zones: a faint tint with neutral text (a faded fill dragged
+       the label under 4.5:1). */
+    background: color-mix(in srgb, var(--seg) 22%, transparent);
+    color: var(--ink-3);
     overflow: hidden;
-    opacity: 0.35;
   }
   /* Zone 2 is the figure; the other zones stay as context. */
   .seg.base {
-    opacity: 1;
+    background: var(--seg);
+    color: var(--seg-on);
   }
   .legend {
     display: flex;
@@ -95,6 +98,6 @@
     font-size: var(--fs-xs);
   }
   .other {
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
 </style>

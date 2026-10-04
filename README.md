@@ -25,8 +25,8 @@ npm run build    # production build in dist/
 Built with Svelte 5, TypeScript and Vite. Other scripts:
 
 - `npm run icons` regenerates the app icons in `public/icons/`.
-- `npm run build` also writes a performance report (bundle sizes and benchmarks, compared with the last build) to `reports/`; `npm run perf` runs it on its own.
-- `test-fixtures/` holds anonymised real recordings used by the tests, and `public/demo/` holds the sample sessions behind "Try it with sample data". Both were made from real files by `scripts/demo/` (positions moved, serial numbers and profile data removed).
+- `npm run build:perf` builds and then writes a performance report (bundle sizes and benchmarks, compared with the last report) to `reports/`; `npm run perf` reruns the report against the existing `dist/`. Deploys use the plain `npm run build`, without the benchmarks.
+- `test-fixtures/` holds anonymised real recordings used by the tests, and `public/demo/` holds the sample sessions behind "Try it with sample data". Both were made from real files by `scripts/demo/` (routes trimmed at both ends and moved, altitudes and dates shifted by secret random amounts, serial numbers and profile data removed).
 
 ## Health disclaimer
 

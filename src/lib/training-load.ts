@@ -78,11 +78,36 @@ export const LOAD_BAND_COLOR: Record<LoadBand, string> = {
   risk: 'var(--alert)'
 };
 
+// Same bands as text (the fills above miss 4.5:1 as text in the light theme).
+export const LOAD_BAND_INK: Record<LoadBand, string> = {
+  detrain: 'var(--zone-1-ink)',
+  productive: 'var(--positive-ink)',
+  caution: 'var(--caution-ink)',
+  risk: 'var(--alert-ink)'
+};
+
+// How much history the ratio needs before it means anything: 4 weeks, the
+// same span the Chronic load card needs for its 4-week trend (its baseline
+// week must hold training). Both cards read this one rule.
+export const MIN_HISTORY_DAYS = 28;
+
+// Days from the first load-bearing activity to today (0 with none).
+export function loadHistoryDays(activities: Activity[]): number {
+  let oldest = 0;
+  for (const a of activities) {
+    if (activityLoad(a) <= 0) continue;
+    oldest = Math.max(oldest, daysAgo(a.date));
+  }
+  return oldest;
+}
+
 export interface AcuteChronic {
   acute7d: number;
   chronic42d: number; // mean weekly load over the trailing 42 days
   ratio: number; // 0 when chronic42d is 0 (no history yet)
   band: LoadBand;
+  historyDays: number; // first load-bearing activity to today
+  hasHistory: boolean; // historyDays >= MIN_HISTORY_DAYS; below it the ratio is only noise
 }
 
 export function acuteChronicRatio(activities: Activity[]): AcuteChronic {
@@ -97,7 +122,8 @@ export function acuteChronicRatio(activities: Activity[]): AcuteChronic {
   }
   const chronic42d = sum42d / 6; // 42 days = 6 weeks
   const ratio = chronic42d > 0 ? acute7d / chronic42d : 0;
-  return { acute7d, chronic42d, ratio, band: loadBand(ratio) };
+  const historyDays = loadHistoryDays(activities);
+  return { acute7d, chronic42d, ratio, band: loadBand(ratio), historyDays, hasHistory: historyDays >= MIN_HISTORY_DAYS };
 }
 
 // Real run distance in the trailing `days` window, for the "Run volume" KPI.

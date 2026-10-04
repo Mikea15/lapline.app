@@ -2,8 +2,9 @@
      sticky header + one of the dashboard screens. Settings/Import are modals opened from the header,
      not screens of their own (see design_handoff_sports_dashboard/README.md). -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { themeStore } from './lib/theme-store.svelte';
+  import { dialogFocus } from './lib/dialog-focus';
   import { logoTickSvg, initLogoLaps, WORDMARK_HTML } from './lib/logo';
   import Icon from './components/Icon.svelte';
   import SettingsPanel from './components/SettingsPanel.svelte';
@@ -29,6 +30,7 @@
   import { setAnalyticsEnabled, trackPageview, trackEvent } from './lib/analytics';
   import { fetchSampleFiles, countSampleActivities, removeSampleData } from './lib/sample-data';
   import { installHint, currentInstallEnv } from './lib/install-hint';
+  import { dbStatus } from './lib/db-status.svelte';
 
   // 'all' has no fixed day count - it resolves against historyMinDate below,
   // so it's excluded from PRESET_DAYS and handled as its own case wherever
@@ -98,6 +100,16 @@
     try {
       sampleError = null;
       await importStore.importFiles(await fetchSampleFiles());
+      // The finished import is the point; once it's had a moment to be seen,
+      // close the dialog and land on Today with the page heading focused.
+      if (importStore.state.status === 'done' && showImport) {
+        setTimeout(() => {
+          if (!showImport || importStore.state.status !== 'done') return;
+          closeImport();
+          navigate('today');
+          tick().then(() => titleEl?.focus());
+        }, 1000);
+      }
     } catch (e) {
       console.error(e);
       sampleError = "Couldn't load the sample data. Check your connection, then try again.";
@@ -229,6 +241,7 @@
   // rather than assumed, since the brief itself flags a hardcoded guess
   // (51px assumed vs 76.5px actual) as a real layout bug it already hit.
   let headerEl = $state<HTMLElement | null>(null);
+  let titleEl = $state<HTMLElement | null>(null);
 
   // Settings > Display > Text size: every --fs-* token in styles/tokens.css
   // is a calc() on this, so setting it on <html> rescales the whole app.
@@ -246,7 +259,7 @@
     return () => ro.disconnect();
   });
 
-  onMount(async () => {
+  onMount(() => {
     themeStore.init();
     initLogoLaps();
     setAnalyticsEnabled(settingsStore.getAnalyticsEnabled());
@@ -266,12 +279,17 @@
     }
     history.replaceState(null, '', hashFor(screen, activeActivityId));
     trackPageview(pageviewPath(screen, activeActivityId));
-    window.addEventListener('popstate', () => {
+    const onPopState = () => {
       applyHash(location.hash);
       trackPageview(pageviewPath(screen, activeActivityId));
-    });
-    setInterval(() => (nowTick = Date.now()), 60_000);
+    };
+    window.addEventListener('popstate', onPopState);
+    const tickTimer = setInterval(() => (nowTick = Date.now()), 60_000);
     initialized = true;
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      clearInterval(tickTimer);
+    };
   });
 
   function pushHash(next: string) {
@@ -309,6 +327,19 @@
   // in the app (design_handoff_settings/README.md section 2) - SettingsPanel
   // itself autofocuses that field whenever it mounts.
   function handleGlobalKeydown(e: KeyboardEvent) {
+    // Escape closes the top-most open dialog. Settings handles its own Escape
+    // (nested confirms, clearing the search first), and a control that used
+    // Escape itself (sliders, inputs) has already called preventDefault.
+    if (e.key === 'Escape' && !e.defaultPrevented && !showSettings) {
+      if (showReleaseNotes) showReleaseNotes = false;
+      else if (showPrivacy) showPrivacy = false;
+      else if (showTerms) showTerms = false;
+      else if (showAbout) showAbout = false;
+      else if (showImport) closeImport();
+      else return;
+      e.preventDefault();
+      return;
+    }
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
       openTool(() => (showSettings = true), 'settings');
@@ -463,7 +494,7 @@
     <header class="header" bind:this={headerEl}>
       <div class="header-left">
         <div>
-          <div class="header-title">{screenTitle(screen)}</div>
+          <h1 class="header-title" tabindex="-1" bind:this={titleEl}>{screenTitle(screen)}</h1>
           {#if screenSub(screen)}<div class="header-subline">{screenSub(screen)}</div>{/if}
         </div>
       </div>
@@ -495,12 +526,19 @@
       </div>
     </header>
 
+    {#if dbStatus.closedByOtherTab}
+      <div class="notice-banner" role="alert">
+        <span>Lapline was updated in another tab. Reload this tab to carry on.</span>
+        <button type="button" class="btn btn-primary" onclick={() => location.reload()}>Reload</button>
+      </div>
+    {/if}
+
     {#if sampleCount > 0 || sampleError}
       <div class="notice-banner" role="status">
         {#if sampleError}
           <span>{sampleError}</span>
         {:else}
-          <span>You're looking at <strong>sample data</strong>: {sampleCount} anonymised {sampleCount === 1 ? 'activity' : 'activities'}. Remove it before importing your own, so it doesn't mix with your training.</span>
+          <span>You're looking at <strong>sample data</strong>: {sampleCount} anonymised {sampleCount === 1 ? 'activity' : 'activities'}. It's removed when you import your own workouts.</span>
           <button type="button" class="btn btn-secondary" onclick={removeSamples} disabled={removingSamples}>
             {removingSamples ? 'Removing…' : 'Remove sample data'}
           </button>
@@ -553,7 +591,7 @@
   <div class="modal-overlay" onclick={() => (showSettings = false)} role="presentation">
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="modal settings-modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
+    <div class="modal settings-modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1" use:dialogFocus>
       <SettingsPanel onClose={() => (showSettings = false)} />
     </div>
   </div>
@@ -563,7 +601,7 @@
   <div class="modal-overlay" onclick={closeImport} role="presentation">
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
+    <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1" use:dialogFocus>
       <div class="flex justify-between items-center mb-4">
         <span class="kicker">Import</span>
         <button class="icon-btn" onclick={closeImport} aria-label="Close"><Icon name="close" size={14} /></button>
@@ -577,7 +615,7 @@
   <div class="modal-overlay" onclick={() => (showAbout = false)} role="presentation">
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
+    <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1" use:dialogFocus>
       <div class="flex justify-between items-center mb-4">
         <span class="kicker">About</span>
         <button class="icon-btn" onclick={() => (showAbout = false)} aria-label="Close"><Icon name="close" size={14} /></button>
@@ -605,7 +643,7 @@
   <div class="modal-overlay" onclick={() => (showTerms = false)} role="presentation">
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
+    <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1" use:dialogFocus>
       <div class="flex justify-between items-center mb-4">
         <span class="kicker">Terms & Conditions</span>
         <button class="icon-btn" onclick={() => (showTerms = false)} aria-label="Close"><Icon name="close" size={14} /></button>
@@ -619,7 +657,7 @@
   <div class="modal-overlay" onclick={() => (showPrivacy = false)} role="presentation">
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
+    <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1" use:dialogFocus>
       <div class="flex justify-between items-center mb-4">
         <span class="kicker">Privacy Policy</span>
         <button class="icon-btn" onclick={() => (showPrivacy = false)} aria-label="Close"><Icon name="close" size={14} /></button>
@@ -633,7 +671,7 @@
   <div class="modal-overlay" onclick={() => (showReleaseNotes = false)} role="presentation">
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1">
+    <div class="modal" onclick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" tabindex="-1" use:dialogFocus>
       <div class="flex justify-between items-center mb-4">
         <span class="kicker">Release Notes</span>
         <button class="icon-btn" onclick={() => (showReleaseNotes = false)} aria-label="Close"><Icon name="close" size={14} /></button>
@@ -645,7 +683,7 @@
 
 {#if showWelcome}
   <div class="modal-overlay" role="presentation">
-    <div class="modal" style="max-width: 744px;" role="dialog" aria-modal="true" tabindex="-1">
+    <div class="modal" style="max-width: 744px;" role="dialog" aria-modal="true" tabindex="-1" use:dialogFocus>
       <WelcomeModal onImportNow={welcomeImportNow} onExploreFirst={welcomeExploreFirst} onTrySamples={welcomeTrySamples} />
     </div>
   </div>

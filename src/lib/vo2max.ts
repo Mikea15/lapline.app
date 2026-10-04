@@ -18,9 +18,9 @@
 // window (the same sliding-window search the Records screen uses) is the
 // closest this app can get to "a timed hard effort" from ordinary training data.
 
-import type { Activity, ActivityDetail } from './types';
+import type { Activity } from './types';
 import { sportFamily } from './sport-color';
-import { bestDistanceForDuration } from './best-effort';
+import { effortDistanceForDuration, type ActivityEfforts, type GetEfforts } from './activity-efforts';
 import { daysAgo } from './date-utils';
 
 const MIN_EFFORT_SEC = 210; // 3.5 min
@@ -44,12 +44,12 @@ function vdotFromEffort(distanceM: number, durationSec: number): number {
 }
 
 // Highest VDOT (i.e. best-equivalent effort) found across all candidate
-// durations within one activity's stream.
-function bestVdotInActivity(detail: ActivityDetail): number | null {
-  if (detail.distance.length < 2) return null;
+// durations within one activity's stream (its stored best efforts - see
+// lib/activity-efforts.ts).
+function bestVdotInActivity(efforts: ActivityEfforts): number | null {
   let best: number | null = null;
   for (const durationSec of CANDIDATE_DURATIONS_SEC) {
-    const meters = bestDistanceForDuration(detail.distance, detail.t, durationSec);
+    const meters = effortDistanceForDuration(efforts, durationSec);
     if (!meters || meters <= 0) continue;
     const vdot = vdotFromEffort(meters, durationSec);
     if (vdot > 0 && (best === null || vdot > best)) best = vdot;
@@ -69,10 +69,7 @@ const TREND_WINDOW_DAYS = 90;
 // the last 90 days - the same window as the newest point of
 // weeklyVo2MaxTrend, so the value and its "in 4w" change agree, and it can
 // fall as well as rise.
-export async function currentVo2Max(
-  activities: Activity[],
-  getDetail: (id: number) => Promise<ActivityDetail | null>
-): Promise<Vo2MaxEstimate> {
+export async function currentVo2Max(activities: Activity[], getEfforts: GetEfforts): Promise<Vo2MaxEstimate> {
   const runs = activities.filter((a) => {
     const age = daysAgo(a.date);
     return sportFamily(a.sport) === 'running' && a.distanceKm > 0 && age >= 0 && age < TREND_WINDOW_DAYS;
@@ -80,10 +77,11 @@ export async function currentVo2Max(
   let best: number | null = null;
   let bestId: number | null = null;
   let bestDate: string | null = null;
-  for (const a of runs) {
-    const detail = await getDetail(a.id);
-    if (!detail) continue;
-    const vdot = bestVdotInActivity(detail);
+  const efforts = await Promise.all(runs.map(getEfforts));
+  for (const [i, a] of runs.entries()) {
+    const e = efforts[i];
+    if (!e) continue;
+    const vdot = bestVdotInActivity(e);
     if (vdot !== null && (best === null || vdot > best)) {
       best = vdot;
       bestId = a.id;
@@ -98,15 +96,18 @@ export async function currentVo2Max(
 // with real recent fitness rather than only ratchet upward like a PR table.
 export async function weeklyVo2MaxTrend(
   activities: Activity[],
-  getDetail: (id: number) => Promise<ActivityDetail | null>,
+  getEfforts: GetEfforts,
   numWeeks: number
 ): Promise<(number | null)[]> {
-  const runs = activities.filter((a) => sportFamily(a.sport) === 'running' && a.distanceKm > 0);
+  // Runs older than the oldest week's window can't count in any point, so
+  // they aren't read at all.
+  const horizonDays = (numWeeks - 1) * 7 + TREND_WINDOW_DAYS;
+  const runs = activities.filter((a) => sportFamily(a.sport) === 'running' && a.distanceKm > 0 && daysAgo(a.date) < horizonDays);
   const withVdot = (
     await Promise.all(
       runs.map(async (a) => {
-        const detail = await getDetail(a.id);
-        return { daysAgo: daysAgo(a.date), vdot: detail ? bestVdotInActivity(detail) : null };
+        const e = await getEfforts(a);
+        return { daysAgo: daysAgo(a.date), vdot: e ? bestVdotInActivity(e) : null };
       })
     )
   ).filter((r): r is { daysAgo: number; vdot: number } => r.vdot !== null && r.daysAgo >= 0);

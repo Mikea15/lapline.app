@@ -7,6 +7,9 @@
   import RecordsTable from '../RecordsTable.svelte';
   import MilestoneLadder from '../MilestoneLadder.svelte';
   import InfoLabel from '../InfoLabel.svelte';
+  import EffortsFillNote from '../EffortsFillNote.svelte';
+  import { effortsFill } from '../../lib/efforts-progress.svelte';
+  import type { Activity } from '../../lib/types';
 
   // The record catalog's labels/sports are known statically, with no
   // activity data needed - used to seed every row up front (in a `loading`
@@ -25,16 +28,29 @@
 
   let activities = $derived(activitiesStore.all);
   let unitSystem = $derived(settingsStore.getUnitSystem());
-  let getDetail = (id: number) => activitiesStore.getDetail(id);
 
   let records = $state<RecordResult[]>(recordCatalog().map(emptyRow));
 
+  // While the one-off best-efforts fill runs (lib/efforts-store.ts), the
+  // stream-based rows use the efforts it has reached so far - newest first -
+  // and re-read as it ticks; one with nothing yet stays a skeleton rather
+  // than claim there's no effort.
+  let seededFor: Activity[] | null = null;
+  let run = 0;
   $effect(() => {
+    void effortsFill.tick;
     // Re-seed every row back to its loading state up front, so a stale
-    // value can never sit there while the new activities are processed.
-    records = recordCatalog().map(emptyRow);
-    computeRecordsStreaming(activities, getDetail, (i, r) => {
-      records[i] = r;
+    // value can never sit there while the new activities are processed
+    // (not on a fill tick: the rows already shown stay until replaced).
+    if (seededFor !== activities) {
+      seededFor = activities;
+      records = recordCatalog().map(emptyRow);
+    }
+    const thisRun = ++run;
+    computeRecordsStreaming(activities, (a) => activitiesStore.getEffortsForView(a), (i, r) => {
+      if (thisRun !== run) return;
+      const stream = r.kind === 'pace-distance' || r.kind === 'duration-distance';
+      records[i] = stream && r.bestValue === null && effortsFill.running ? { ...r, loading: true } : r;
     });
   });
 
@@ -50,6 +66,9 @@
       <InfoLabel class="panel-label" text="Personal records" tip="Your bests across running, swimming and cycling. Times for 1, 5 and 10 km and 100 m count your fastest stretch anywhere in a session, not just a race or lap." />
       <span class="panel-meta">{recordsLoading ? '— ' : `${recentRecordsCount} `}set in the last 14 days</span>
     </div>
+    {#if effortsFill.running}
+      <div class="mt-4"><EffortsFillNote compact /></div>
+    {/if}
     <div class="mt-4">
       <RecordsTable {records} {unitSystem} onSelect={onSelectActivity} />
     </div>

@@ -64,7 +64,7 @@
   }
   .kpi-meta {
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
     white-space: nowrap;
   }
   .kpi-badge {

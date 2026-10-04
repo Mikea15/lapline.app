@@ -369,6 +369,7 @@ export async function parseFIT(data: Uint8Array): Promise<ParsedActivity[]> {
         garminVo2Max,
         recoveryTimeHours,
         startTimeLabel: getStartTimeLabel(s.start_time),
+        ...(s.start_time ? { startUtc: s.start_time.toISOString() } : {}),
         poolLengthM: s.pool_length || 0,
         ...(swimActiveDurationMin !== undefined ? { swimActiveDurationMin } : {})
       },

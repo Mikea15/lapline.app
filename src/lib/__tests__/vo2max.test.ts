@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import type { Activity, ActivityDetail } from '../types';
 import { currentVo2Max, weeklyVo2MaxTrend } from '../vo2max';
+import { effortsFromDetails } from './efforts-lookup';
 
 const TODAY = new Date(2024, 5, 15, 12, 0, 0);
 beforeEach(() => vi.useFakeTimers().setSystemTime(TODAY));
@@ -82,7 +83,7 @@ describe('currentVo2Max', () => {
       [slow.id, constantPaceDetail(slow, 1000 / 300)],
       [fast.id, constantPaceDetail(fast, 1000 / 240)]
     ]);
-    const result = await currentVo2Max([slow, fast], async (id) => details.get(id) ?? null);
+    const result = await currentVo2Max([slow, fast], effortsFromDetails(details));
     expect(result.activityId).toBe(fast.id);
     expect(result.date).toBe(fast.date);
     expect(result.value).not.toBeNull();
@@ -96,14 +97,14 @@ describe('currentVo2Max', () => {
       [old.id, constantPaceDetail(old, 1000 / 200)], // faster, but stale
       [recent.id, constantPaceDetail(recent, 1000 / 300)]
     ]);
-    const result = await currentVo2Max([old, recent], async (id) => details.get(id) ?? null);
+    const result = await currentVo2Max([old, recent], effortsFromDetails(details));
     expect(result.activityId).toBe(recent.id);
   });
 
   it('ignores non-running activities entirely', async () => {
     const ride = activity({ sport: 'cycling', date: daysAgoDate(1) });
     const details = new Map([[ride.id, constantPaceDetail(ride, 1000 / 150)]]); // very fast, but not a run
-    const result = await currentVo2Max([ride], async (id) => details.get(id) ?? null);
+    const result = await currentVo2Max([ride], effortsFromDetails(details));
     expect(result.value).toBeNull();
   });
 });
@@ -112,7 +113,7 @@ describe('weeklyVo2MaxTrend', () => {
   it('is null before any qualifying effort has happened', async () => {
     const a = activity({ date: daysAgoDate(7) });
     const details = new Map([[a.id, constantPaceDetail(a, 1000 / 240)]]);
-    const trend = await weeklyVo2MaxTrend([a], async (id) => details.get(id) ?? null, 6);
+    const trend = await weeklyVo2MaxTrend([a], effortsFromDetails(details), 6);
     // 6 weekly points, oldest -> newest; the oldest (asOf ~35 days ago) predates the effort.
     expect(trend[0]).toBeNull();
     expect(trend[trend.length - 1]).not.toBeNull();
@@ -121,7 +122,7 @@ describe('weeklyVo2MaxTrend', () => {
   it('drops an effort out of the trailing 90-day window once it goes stale', async () => {
     const stale = activity({ date: daysAgoDate(200) });
     const details = new Map([[stale.id, constantPaceDetail(stale, 1000 / 240)]]);
-    const trend = await weeklyVo2MaxTrend([stale], async (id) => details.get(id) ?? null, 4);
+    const trend = await weeklyVo2MaxTrend([stale], effortsFromDetails(details), 4);
     // The most recent week's "as of today" 90-day window can't reach 200 days back.
     expect(trend[trend.length - 1]).toBeNull();
   });

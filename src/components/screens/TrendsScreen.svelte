@@ -5,9 +5,11 @@
   import { activitiesStore, settingsStore } from '../../lib/stores.svelte';
   import { addDays, daysBetween, formatDateRangeShort } from '../../lib/date-utils';
   import { sportFamily } from '../../lib/sport-color';
+  import type { Activity } from '../../lib/types';
+  import EffortsFillNote from '../EffortsFillNote.svelte';
+  import { effortsFill } from '../../lib/efforts-progress.svelte';
   import type { SportFamily } from '../../lib/sport-color';
   import { toDisplayDistance, distanceUnit, formatPace } from '../../lib/units';
-  import { kmSplitPaces } from '../../lib/best-effort';
   import TrendVolumeChart from '../TrendVolumeChart.svelte';
   import EfficiencyScatter from '../EfficiencyScatter.svelte';
   import IntensityStack from '../IntensityStack.svelte';
@@ -99,29 +101,37 @@
   let current = $derived(allActivities.filter((a) => matchesType(a) && inCustomRange(a, startDate, endDate) && inValueRange(a)));
   let previous = $derived(allActivities.filter((a) => matchesType(a) && inCustomRange(a, previousStart, previousEnd) && inValueRange(a)));
 
-  function sumRunKm(acts: typeof allActivities): number {
-    return acts.filter((a) => sportFamily(a.sport) === 'running').reduce((s, a) => s + a.distanceKm, 0);
-  }
-
   // Per-km split paces for the pace histogram, resampled from each run's raw
   // distance/time stream rather than read off its recorded laps - laps vary
   // with whatever auto-lap distance (or manual presses) the device used, and
   // some devices don't lap at all, so aggregating laps across many
-  // activities gave a sparse, inconsistent sample. Needs full activity detail
-  // (the stream isn't on the summary Activity row), fetched once per range
-  // change.
+  // activities gave a sparse, inconsistent sample. Each run's splits are
+  // stored with its best efforts (lib/activity-efforts.ts), so this reads a
+  // handful of numbers per run rather than its per-second records.
   let splitPaces = $state<number[]>([]);
   let splitPacesLoading = $state(true);
+  // While the one-off best-efforts fill runs (lib/efforts-store.ts), a range
+  // with runs it hasn't reached yet shows a note instead of a partial chart
+  // (newest first, so recent ranges are ready soonest), and re-reads as the
+  // fill ticks.
+  let splitPacesWaiting = $state(false);
+  let splitPacesFor: Activity[] | null = null;
+  let splitPacesRun = 0;
   $effect(() => {
-    splitPacesLoading = true;
+    void effortsFill.tick;
+    if (splitPacesFor !== current) {
+      splitPacesFor = current;
+      splitPacesLoading = true;
+    }
+    const run = ++splitPacesRun;
     const runs = current.filter((a) => sportFamily(a.sport) === 'running');
-    Promise.all(runs.map((a) => activitiesStore.getDetail(a.id))).then((details) => {
+    const view = activitiesStore.trackedEffortsForView();
+    Promise.all(runs.map((a) => view.get(a))).then((efforts) => {
+      if (run !== splitPacesRun) return;
       const paces: number[] = [];
-      for (const d of details) {
-        if (!d) continue;
-        paces.push(...kmSplitPaces(d.distance, d.t));
-      }
+      for (const e of efforts) if (e) paces.push(...e.kmSplitPaces);
       splitPaces = paces;
+      splitPacesWaiting = view.missing() > 0;
       splitPacesLoading = false;
     });
   });
@@ -132,11 +142,24 @@
   // no runs legitimately resolves to empty curves.
   let curves = $state<CriticalPaceCurves>({ thisRange: [], previousRange: [] });
   let curvesLoading = $state(true);
+  let curvesWaiting = $state(false);
+  let curvesRun = 0;
+  let curvesKey = '';
   $effect(() => {
-    curvesLoading = true;
+    void effortsFill.tick;
     const acts = allActivities.filter((a) => matchesType(a) && inValueRange(a));
-    criticalPaceCurves(acts, (id) => activitiesStore.getDetail(id), startDate, endDate).then((c) => {
+    // Same inputs, so a fill tick: leave the chart up until it's replaced.
+    const key = `${startDate}|${endDate}|${acts.length}|${acts[0]?.id}|${acts[acts.length - 1]?.id}`;
+    if (curvesKey !== key) {
+      curvesKey = key;
+      curvesLoading = true;
+    }
+    const run = ++curvesRun;
+    const view = activitiesStore.trackedEffortsForView();
+    criticalPaceCurves(acts, view.get, startDate, endDate).then((c) => {
+      if (run !== curvesRun) return;
       curves = c;
+      curvesWaiting = view.missing() > 0;
       curvesLoading = false;
     });
   });
@@ -176,12 +199,9 @@
   <div class="panel">
     <div class="panel-head">
       <InfoLabel class="panel-label" text="Weekly volume by sport" tip="Running, cycling and swimming volume each week, stacked by sport. The dashed line is your 3-week average." />
-      <div class="flex gap-4">
-        <span class="panel-meta"><span class="zone-key-swatch" style="background: var(--sport-running); display: inline-block; margin-right: var(--space-2);"></span>Run · {toDisplayDistance(sumRunKm(current), unitSystem).toFixed(1)} {distanceUnit(unitSystem)}</span>
-      </div>
     </div>
     <div class="mt-4">
-      <TrendVolumeChart activities={current} {numWeeks} metric={subject} />
+      <TrendVolumeChart activities={current} {numWeeks} metric={subject} {unitSystem} />
     </div>
     <p class="chart-explainer">
       Each bar totals that week's training, split by sport; weeks with nothing logged are left out rather than drawn as an empty gap. The dashed
@@ -218,8 +238,10 @@
       <div class="mt-4">
         {#if splitPacesLoading}
           <SkeletonChart height="196px" />
+        {:else if splitPacesWaiting}
+          <EffortsFillNote height="196px" />
         {:else}
-          <Histogram values={splitPaces} formatValue={(v) => formatPace(v, unitSystem)} unitLabel="splits" emptyText="No splits in this range." />
+          <Histogram label="Split pace" values={splitPaces} formatValue={(v) => formatPace(v, unitSystem)} unitLabel="splits" emptyText="No splits in this range." />
         {/if}
       </div>
       <p class="chart-explainer">
@@ -237,6 +259,8 @@
       <div class="mt-4">
         {#if curvesLoading}
           <SkeletonChart height="180px" />
+        {:else if curvesWaiting}
+          <EffortsFillNote height="180px" />
         {:else}
           <CriticalPaceCurve {curves} {unitSystem} {rangeLabel} />
         {/if}
@@ -247,6 +271,7 @@
       <p class="panel-prose">Distribution of activity distances, {formatDateRangeShort(startDate, endDate)}.</p>
       <div class="mt-4">
         <Histogram
+          label="Activity distance"
           values={activityDistancesKm}
           formatValue={(v) => `${toDisplayDistance(v, unitSystem).toFixed(1)} ${distanceUnit(unitSystem)}`}
           unitLabel="activities"
@@ -262,7 +287,7 @@
       <span class="panel-label">Time histogram</span>
       <p class="panel-prose">Distribution of activity duration, {formatDateRangeShort(startDate, endDate)}.</p>
       <div class="mt-4">
-        <Histogram values={activityDurationsMin} formatValue={formatDurationLabel} unitLabel="activities" emptyText="No activities in this range." />
+        <Histogram label="Activity duration" values={activityDurationsMin} formatValue={formatDurationLabel} unitLabel="activities" emptyText="No activities in this range." />
       </div>
       <p class="chart-explainer">
         One point per activity in range - how long it lasted. A cluster at one end says your sessions are mostly one length; a spread across the
@@ -273,7 +298,7 @@
       <span class="panel-label">Avg HR histogram</span>
       <p class="panel-prose">Distribution of average heart rate, {formatDateRangeShort(startDate, endDate)}.</p>
       <div class="mt-4">
-        <Histogram values={activityAvgHRs} formatValue={(v) => `${Math.round(v)} bpm`} unitLabel="activities" emptyText="No heart rate data in this range." />
+        <Histogram label="Average heart rate" values={activityAvgHRs} formatValue={(v) => `${Math.round(v)} bpm`} unitLabel="activities" emptyText="No heart rate data in this range." />
       </div>
       <p class="chart-explainer">
         One point per activity in range - its average heart rate. Weighted toward the low end means mostly easy aerobic work; a spread toward

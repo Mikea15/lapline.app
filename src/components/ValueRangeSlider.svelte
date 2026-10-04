@@ -10,9 +10,11 @@
     end: number;
     step?: number;
     formatValue: (v: number) => string;
+    /** Noun for the screen-reader names, e.g. "distance" -> "Minimum distance". */
+    label?: string;
   }
 
-  let { min, max, start = $bindable(), end = $bindable(), step = 1, formatValue }: Props = $props();
+  let { min, max, start = $bindable(), end = $bindable(), step = 1, formatValue, label = 'value' }: Props = $props();
 
   function snap(v: number): number {
     return Math.round(v / step) * step;
@@ -61,8 +63,8 @@
   }
 
   function onHandleKeydown(handle: 'start' | 'end', e: KeyboardEvent) {
-    if (e.key === 'ArrowLeft') { nudge(handle, -1); e.preventDefault(); }
-    else if (e.key === 'ArrowRight') { nudge(handle, 1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { nudge(handle, -1); e.preventDefault(); }
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { nudge(handle, 1); e.preventDefault(); }
   }
 </script>
 
@@ -79,7 +81,8 @@
       onpointerdown={(e) => onHandlePointerDown('start', e)}
       onkeydown={(e) => onHandleKeydown('start', e)}
       role="slider"
-      aria-label="Minimum"
+      aria-orientation="horizontal"
+      aria-label="Minimum {label}"
       aria-valuemin={min}
       aria-valuemax={max}
       aria-valuenow={start}
@@ -95,7 +98,8 @@
       onpointerdown={(e) => onHandlePointerDown('end', e)}
       onkeydown={(e) => onHandleKeydown('end', e)}
       role="slider"
-      aria-label="Maximum"
+      aria-orientation="horizontal"
+      aria-label="Maximum {label}"
       aria-valuemin={min}
       aria-valuemax={max}
       aria-valuenow={end}

@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { bestTimeForDistance, bestDistanceForDuration, kmSplitPaces } from '../best-effort';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import { bestTimeForDistance, bestDistanceForDuration, kmSplitPaces, bestWindowPace, plausibleDistance, maxPlausibleSpeedMps } from '../best-effort';
+import { parseFIT } from '../fit-parser';
 
 describe('bestTimeForDistance', () => {
   it('finds the fastest window covering the target distance, with interpolation', () => {
@@ -88,5 +92,119 @@ describe('kmSplitPaces', () => {
   it('returns an empty array for streams shorter than one segment', () => {
     expect(kmSplitPaces([0, 500], [0, 150])).toEqual([]);
     expect(kmSplitPaces([0], [0])).toEqual([]);
+  });
+});
+
+// 1 Hz samples at `speed` m/s; `extra` adds metres at given seconds (a glitch).
+function steadyStream(seconds: number, speed: number, extra: Record<number, number> = {}) {
+  const t: number[] = [];
+  const distance: number[] = [];
+  let d = 0;
+  for (let s = 0; s <= seconds; s++) {
+    if (s > 0) d += speed + (extra[s] ?? 0);
+    t.push(s);
+    distance.push(d);
+  }
+  return { t, distance };
+}
+
+describe('maxPlausibleSpeedMps', () => {
+  it('caps running and cycling, leaves other sports as recorded', () => {
+    expect(maxPlausibleSpeedMps('running')).toBe(12);
+    expect(maxPlausibleSpeedMps('trail_running')).toBe(12);
+    expect(maxPlausibleSpeedMps('cycling')).toBe(30);
+    expect(maxPlausibleSpeedMps('lap_swimming')).toBe(Infinity);
+    expect(maxPlausibleSpeedMps('cardio_training')).toBe(Infinity);
+  });
+});
+
+describe('plausibleDistance', () => {
+  it('returns the same array when nothing is faster than the limit', () => {
+    const { t, distance } = steadyStream(600, 11.9);
+    expect(plausibleDistance(distance, t, 12)).toBe(distance);
+    expect(plausibleDistance(distance, t, Infinity)).toBe(distance);
+  });
+
+  it('replaces a spike with the speed around it and shifts the rest down', () => {
+    const { t, distance } = steadyStream(100, 3, { 50: 52 }); // 55 m in one second
+    const clean = plausibleDistance(distance, t, 12);
+    expect(distance).toEqual(steadyStream(100, 3, { 50: 52 }).distance); // input untouched
+    clean.forEach((d, i) => expect(d).toBeCloseTo(3 * i, 9));
+  });
+
+  it('treats distance gained with no time passing as a spike', () => {
+    const t = [0, 1, 2, 2, 3, 4];
+    const distance = [0, 3, 6, 40, 43, 46];
+    expect(plausibleDistance(distance, t, 12)).toEqual([0, 3, 6, 6, 9, 12]);
+  });
+
+  it('falls back to the limit when no neighbour is plausible', () => {
+    expect(plausibleDistance([0, 100, 200], [0, 1, 2], 12)).toEqual([0, 12, 24]);
+  });
+});
+
+describe('best efforts on a spiky stream', () => {
+  // A steady 5:00 /km run (3.33 m/s) for an hour, with a 60 m glitch in one
+  // second and 90 m more across a 6 s gap between samples.
+  const glitch = steadyStream(3600, 1000 / 300, { 1200: 60, 2400: 90 });
+  const kept = (s: number) => s <= 2394 || s >= 2400;
+  const t = glitch.t.filter(kept);
+  const distance = glitch.distance.filter((_, s) => kept(s));
+  const cap = maxPlausibleSpeedMps('running');
+
+  it('reads too fast as recorded', () => {
+    expect(bestTimeForDistance(distance, t, 1000)!).toBeLessThan(280);
+    expect(bestWindowPace(distance, t)!).toBeLessThan(4.7);
+  });
+
+  it('matches the steady pace in every best effort with the running limit', () => {
+    expect(bestTimeForDistance(distance, t, 1000, cap)).toBeCloseTo(300, 6);
+    expect(bestTimeForDistance(distance, t, 5000, cap)).toBeCloseTo(1500, 6);
+    expect(bestWindowPace(distance, t, 1000, cap)).toBeCloseTo(5, 6);
+    expect(bestDistanceForDuration(distance, t, 600, cap)).toBeCloseTo(2000, 6);
+    const splits = kmSplitPaces(distance, t, 1000, cap);
+    expect(splits).toHaveLength(12);
+    for (const pace of splits) expect(pace).toBeCloseTo(5, 6);
+  });
+
+  it('leaves clean data alone, however fast for its sport', () => {
+    // A ride with 25 m/s sprints and stops: nothing over the cycling limit.
+    const t: number[] = [];
+    const distance: number[] = [];
+    let d = 0;
+    for (let s = 0; s <= 3600; s++) {
+      if (s > 0) d += s % 600 < 30 ? 25 : s % 900 < 60 ? 0 : 8 + 4 * Math.sin(s / 50);
+      t.push(s);
+      distance.push(d);
+    }
+    const bike = maxPlausibleSpeedMps('cycling');
+    expect(bestTimeForDistance(distance, t, 5000, bike)).toBe(bestTimeForDistance(distance, t, 5000));
+    expect(bestDistanceForDuration(distance, t, 60, bike)).toBe(bestDistanceForDuration(distance, t, 60));
+    expect(kmSplitPaces(distance, t, 1000, bike)).toEqual(kmSplitPaces(distance, t));
+  });
+});
+
+describe('best efforts on real recordings', () => {
+  // Anonymised copies of real recordings (scripts/demo/make-test-fixtures.ts).
+  const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../../test-fixtures');
+  async function stream(name: string) {
+    const [pa] = await parseFIT(new Uint8Array(readFileSync(path.join(FIXTURES, name))));
+    return { distance: pa!.records.map((r) => r.distance), t: pa!.records.map((r) => r.t), sport: pa!.activity.sport };
+  }
+
+  it("run-steady's distance glitches no longer make a 3:44 km", async () => {
+    // The watch logged 55 m in 1 s and 83 m in 6 s late in this ~5:27 /km run.
+    const { distance, t, sport } = await stream('run-steady.fit');
+    expect(bestTimeForDistance(distance, t, 1000)!).toBeLessThan(225); // 3:44 as recorded
+    const best = bestTimeForDistance(distance, t, 1000, maxPlausibleSpeedMps(sport))!;
+    expect(best).toBeGreaterThan(250);
+    expect(best).toBeLessThan(265); // 4:17
+  });
+
+  it('gives the same answers as before on recordings without glitches', async () => {
+    for (const name of ['ride-morning.fit', 'ride-evening.fit', 'footy.fit']) {
+      const { distance, t, sport } = await stream(name);
+      expect(plausibleDistance(distance, t, maxPlausibleSpeedMps(sport))).toBe(distance);
+    }
   });
 });

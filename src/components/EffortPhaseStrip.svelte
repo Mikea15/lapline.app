@@ -81,7 +81,7 @@
     font-size: var(--fs-xs);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--accent);
+    color: var(--accent-ink);
     white-space: normal;
     line-height: 1.3;
   }

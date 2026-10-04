@@ -46,11 +46,11 @@
   }
 </script>
 
-<div class="segmented" role="tablist" aria-label="Range">
+<div class="segmented" role="group" aria-label="Date range">
   {#each RANGE_PRESET_OPTIONS as r (r)}
-    <button type="button" class:active={preset === r} onclick={() => setPreset(r)}>{rangePresetLabel(r)}</button>
+    <button type="button" class:active={preset === r} aria-pressed={preset === r} onclick={() => setPreset(r)}>{rangePresetLabel(r)}</button>
   {/each}
-  <button type="button" class:active={preset === 'custom'} onclick={activateCustom}>Custom</button>
+  <button type="button" class:active={preset === 'custom'} aria-pressed={preset === 'custom'} onclick={activateCustom}>Custom</button>
 </div>
 
 {#if preset === 'custom'}

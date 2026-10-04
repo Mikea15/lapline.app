@@ -307,7 +307,7 @@
         {#if hasDistance}
           <div class="chart-tooltip-row">
             <span class="chart-tooltip-label">Pace</span>
-            <span class="chart-tooltip-value" style="color: var(--accent);">{formatPace(readout.pace, unitSystem)}</span>
+            <span class="chart-tooltip-value" style="color: var(--accent-ink);">{formatPace(readout.pace, unitSystem)}</span>
           </div>
         {/if}
         <div class="chart-tooltip-row">
@@ -351,10 +351,6 @@
     -webkit-user-select: none;
     user-select: none;
   }
-  .effort-tape-box:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
   .effort-tape-svg {
     width: 100%;
     height: 100%;
@@ -372,7 +368,7 @@
     font-weight: var(--fw-semibold);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--accent);
+    color: var(--accent-ink);
     pointer-events: none;
   }
   .effort-tape-cursor-line {
@@ -398,7 +394,7 @@
     justify-content: space-between;
     margin-top: var(--space-2);
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
 
   /* The non-GPS fallback (design_handoff_atlas README section 8.2): this

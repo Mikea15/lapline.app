@@ -6,6 +6,9 @@
      with (lib/sample-data.ts), or dismisses to a brief highlight on the
      header's Sync button so they know where to come back to. -->
 <script lang="ts">
+  import { settingsStore } from '../lib/stores.svelte';
+  import { setAnalyticsEnabled } from '../lib/analytics';
+
   interface Props {
     onImportNow: () => void;
     onExploreFirst: () => void;
@@ -13,6 +16,40 @@
   }
 
   let { onImportNow, onExploreFirst, onTrySamples }: Props = $props();
+
+  // The optional online extras, off by default. Each saves straight to the
+  // same setting the Settings panel's Privacy section reads and writes.
+  const EXTRAS = [
+    {
+      key: 'analytics_enabled',
+      name: 'Usage statistics',
+      desc: 'Anonymous screen views and feature use, sent to SimpleAnalytics. Never your activity data.',
+      get: () => settingsStore.getAnalyticsEnabled()
+    },
+    {
+      key: 'location_lookup_enabled',
+      name: 'Place names',
+      desc: "Looks up a name for where an activity started, using OpenStreetMap's Nominatim.",
+      get: () => settingsStore.getLocationLookupEnabled()
+    },
+    {
+      key: 'weather_lookup_enabled',
+      name: 'Weather',
+      desc: 'Shows the conditions for an activity, using Open-Meteo. Sends its date and start point.',
+      get: () => settingsStore.getWeatherLookupEnabled()
+    },
+    {
+      key: 'map_tiles_enabled',
+      name: 'Map backgrounds',
+      desc: 'Shows streets under a route, loading map images of that area from CARTO.',
+      get: () => settingsStore.getMapTilesEnabled()
+    }
+  ] as const;
+
+  async function setExtra(key: (typeof EXTRAS)[number]['key'], next: boolean) {
+    if (key === 'analytics_enabled') setAnalyticsEnabled(next);
+    await settingsStore.save({ [key]: String(next) });
+  }
 </script>
 
 <div class="welcome-head">
@@ -59,6 +96,29 @@
   </div>
 </div>
 
+<section class="welcome-extras" aria-labelledby="welcome-extras-title">
+  <h3 id="welcome-extras-title" class="welcome-extras-title">Optional extras</h3>
+  <p class="welcome-extras-note">
+    These use outside services, so they're all off. Leave them as they are, or turn on any you
+    want. You can change them later in Settings.
+  </p>
+  <ul class="welcome-extras-list">
+    {#each EXTRAS as extra (extra.key)}
+      {@const on = extra.get()}
+      <li class="welcome-extra">
+        <div class="welcome-extra-text">
+          <div class="welcome-extra-name">{extra.name}</div>
+          <div class="welcome-extra-desc">{extra.desc}</div>
+        </div>
+        <div class="segmented" role="group" aria-label={extra.name}>
+          <button type="button" class:active={!on} aria-pressed={!on} onclick={() => setExtra(extra.key, false)}>Off</button>
+          <button type="button" class:active={on} aria-pressed={on} onclick={() => setExtra(extra.key, true)}>On</button>
+        </div>
+      </li>
+    {/each}
+  </ul>
+</section>
+
 <div class="welcome-actions">
   <button type="button" class="btn btn-secondary" onclick={onExploreFirst}>I'll explore first</button>
   <button type="button" class="btn btn-secondary" onclick={onTrySamples}>Try it with sample data</button>
@@ -74,7 +134,7 @@
     font-weight: var(--fw-bold);
     letter-spacing: var(--tracking-caps);
     text-transform: uppercase;
-    color: var(--accent);
+    color: var(--accent-ink);
     margin-bottom: var(--space-3);
   }
   .welcome-title {
@@ -122,6 +182,50 @@
     color: var(--ink-muted);
     font-size: var(--fs-md);
     line-height: 1.5;
+  }
+
+  .welcome-extras {
+    margin-top: var(--space-9);
+    max-width: 688px;
+    padding-top: var(--space-7);
+    border-top: 1px solid var(--line-panel);
+  }
+  .welcome-extras-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--fs-md);
+    font-weight: var(--fw-semibold);
+  }
+  .welcome-extras-note {
+    margin: 0;
+    color: var(--ink-muted);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+  }
+  .welcome-extras-list {
+    list-style: none;
+    margin: var(--space-5) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+  }
+  .welcome-extra {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-6);
+  }
+  .welcome-extra-name {
+    font-size: var(--fs-md);
+    font-weight: var(--fw-semibold);
+  }
+  .welcome-extra-desc {
+    color: var(--ink-muted);
+    font-size: var(--fs-sm);
+    line-height: 1.45;
+  }
+  .welcome-extra .segmented {
+    flex-shrink: 0;
   }
 
   .welcome-actions {

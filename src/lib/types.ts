@@ -42,6 +42,14 @@ export interface Activity {
   workoutFeel: number | null; // Garmin's post-activity "how did that feel" 0-100 scale; null = prompt unanswered/unsupported
   workoutRpe: number | null;  // paired 0-10 Rate of Perceived Exertion; null = unanswered/unsupported
   startTimeLabel: string;    // "HH:MM" local wall-clock start time, display-only; '' if unavailable
+  // The real start instant, ISO UTC ("2026-06-01T22:30:00.000Z") - what
+  // anything needing the actual time (weather hour, recovery countdown)
+  // reads, since startTimeLabel is tied to the browser's timezone at
+  // import. undefined on activities imported before this field existed
+  // until a re-parse backfills it - read it via activityStart()
+  // (lib/activity-time.ts), which falls back to date + startTimeLabel.
+  // Unindexed, so no Dexie schema version bump needed.
+  startUtc?: string;
   sweatLossMl: number;       // estimated fluid loss; 0 = not recorded
   recoveryHrBpm: number;     // real device measurement ~2 min after stopping; 0 = not recorded
   // Garmin/Firstbeat's own on-device estimates, from the FIT `activity_metrics`
@@ -79,8 +87,8 @@ export interface Activity {
   // lib/geocode.ts), only ever populated when Settings > "Location lookup"
   // is turned on (opt-in - it means sending this activity's real GPS
   // coordinate to an external service). undefined = never looked up
-  // (feature off, no GPS, or not yet opened); '' = looked up but no place
-  // name was found. Unindexed, so no Dexie schema version bump needed.
+  // (feature off, not yet opened, or the last lookup failed temporarily and
+  // will be retried); '' = looked up but no place name was found (or no GPS). Unindexed, so no Dexie schema version bump needed.
   locationLabel?: string;
   // Weather condition word (e.g. "Clear", "Rain") for this activity's
   // date/start time/GPS start coordinate (see lib/weather.ts), same opt-in/

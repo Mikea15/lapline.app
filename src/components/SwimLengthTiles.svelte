@@ -156,7 +156,7 @@
     font-size: var(--fs-base);
   }
   .km-tile-num {
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .km-tile-pace {
     color: var(--ink-1);
@@ -174,12 +174,12 @@
     color: var(--ink-5);
   }
   .km-tile-delta-fast {
-    color: var(--accent);
+    color: var(--accent-ink);
   }
   .km-tile-swolf {
     margin-top: var(--space-2);
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .km-tile-mix {
     display: flex;
@@ -204,7 +204,7 @@
     align-items: center;
     justify-content: center;
     gap: var(--space-2);
-    color: var(--ink-6);
+    color: var(--ink-5);
     border-style: dashed;
     cursor: default;
     min-height: 78px;

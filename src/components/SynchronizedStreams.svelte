@@ -179,7 +179,7 @@
         <span class="stream-track-summary">{b.track.summary}</span>
       </div>
       <div class="stream-track-box" style="height: {b.track.heightPx}px;">
-        <svg viewBox="0 0 {VB_W} {b.track.heightPx}" preserveAspectRatio="none" class="stream-track-svg">
+        <svg viewBox="0 0 {VB_W} {b.track.heightPx}" preserveAspectRatio="none" class="stream-track-svg" role="img" aria-label="{b.track.label} ({b.track.unit}) over the activity: {b.track.summary}. Use the timeline slider above to step through it.">
           {#each b.bands as band, i (i)}
             <rect x="0" y={band.y} width={VB_W} height={band.height} fill={band.color} opacity={band.opacity} />
           {/each}
@@ -251,13 +251,13 @@
   .stream-track-unit {
     font-family: var(--font-mono);
     font-size: var(--fs-xs);
-    color: var(--ink-7);
+    color: var(--ink-5);
   }
   .stream-track-summary {
     margin-left: auto;
     font-family: var(--font-mono);
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   .stream-track-box {
     position: relative;
@@ -285,7 +285,7 @@
     left: 6px;
     font-family: var(--font-mono);
     font-size: var(--fs-xs);
-    color: var(--ink-7);
+    color: var(--ink-5);
     pointer-events: none;
   }
   .stream-corner-label.top {
@@ -317,7 +317,7 @@
     justify-content: space-between;
     margin-top: var(--space-1);
     font-size: var(--fs-xs);
-    color: var(--ink-6);
+    color: var(--ink-5);
   }
   /* All 7 ticks only have room to not overlap once this panel is wide
      enough - below ~720px the panel is always a single (often phone-width)
